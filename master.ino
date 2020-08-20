@@ -1,4 +1,4 @@
-need // ST 2020
+// ST 2020
 // master.ino
 
 #include <Wire.h>
@@ -12,7 +12,6 @@ typedef struct {
   String mode = "normal";
   int prevRequestTime;
 } slaveInfo;
-
 
 slaveInfo arr_slaves[numSlaves];
 
@@ -29,9 +28,8 @@ void setup() {
 }
 
 void loop() {
-  
   if (Serial.available()) {
-    String inString = Serial.readString();         // read string from serial
+    String inString = Serial.readString();
     parseSerial(inString);
   }
   
@@ -47,9 +45,7 @@ void loop() {
       }
     }
   }
-  //int outputFlow = analogRead(A7);
-  //Serial.print("MM");
-  //Serial.print(outputFlow);
+  
 }
 
 void parseSerial(String inString) {
@@ -57,30 +53,29 @@ void parseSerial(String inString) {
   char firstChar = inString[0];
   
   if (firstChar == 'M') {
-    char ardUpdate = inString[1];
-    String param = inString;
-    param.remove(0,3);   // starting at 0, remove first 3 chars
-    String value = param;
-    int USidx = param.indexOf('_'); // find underscore
-    param.remove(USidx);            // remove everything from there on
-    value.remove(0,USidx+1);        // starting at 0, remove USidx # of chars
+    char secChar = inString[1];
     
-    if (ardUpdate == 'M') {
+    String param = inString;  param.remove(0,3);   // starting at 0, remove first 3 chars
+    String value = param;
+    
+    int USidx = param.indexOf('_'); // find underscore
+    param.remove(USidx);            // remove everything from underscore to end
+    value.remove(0,USidx+1);        // starting at 0, remove everything up to & including underscore
+    
+    if (secChar == 'M') {
       if (param.indexOf("timebt")>=0) {
         timeBetweenRequests = value.toFloat();
       }
     }
     
     else {
-      int slaveIndex;
       for (int p=0;p<numSlaves;p++) {
-        if (ardUpdate == slaveNames[p]) {
-          slaveIndex = p;
+        if (secChar == arr_slaves[p].slaveName) {
           if (param.indexOf("debug")>=0) {
-            arr_slaves[slaveIndex].mode = "debug";
+            arr_slaves[p].mode = "debug";
           }
           else if (param.indexOf("normal")>=0) {
-            arr_slaves[slaveIndex].mode = "normal";
+            arr_slaves[p].mode = "normal";
           }
           else {
             // do nothing
@@ -96,8 +91,8 @@ void parseSerial(String inString) {
     char charArr[cArrSize];
     inString.toCharArray(charArr,cArrSize); // convert to char array for sending
     for (int p=0;p<numSlaves;p++) {
-      if (firstChar == slaveNames[p]) {
-        slaveToSendTo = slaveAddresses[p];
+      if (firstChar == arr_slaves[p].slaveName) {
+        slaveToSendTo = arr_slaves[p].slaveAddress;
       }
     }
     Wire.beginTransmission(slaveToSendTo);
@@ -107,15 +102,14 @@ void parseSerial(String inString) {
 }
 
 void requestData(int x) {
-  int slaveName = arr_slaves[x].slaveName;
+  char slaveName = arr_slaves[x].slaveName;
   int slaveAddress = arr_slaves[x].slaveAddress;
   int numVials = arr_slaves[x].numVials;
-  int numChars = 3;
   int numBytesToReq = 13;
   
   for (int vialNum=1;vialNum<=numVials;vialNum++) {
-    String strSend = "V";
-    strSend += String(vialNum);
+    String strSend = "V" + String(vialNum);
+    int numChars = strSend.length() + 1;
     char strSend_[numChars];
     strSend.toCharArray(strSend_,numChars);
     
@@ -124,10 +118,13 @@ void requestData(int x) {
     Wire.endTransmission();
     
     Wire.requestFrom(slaveAddress,numBytesToReq,true);
+    Serial.print(slaveName);
+    /*
     switch (slaveName) {
       case 'A': Serial.print("A");  break;
       case 'B': Serial.print("B");  break;
     }
+    */
     for (int a=0;a<numBytesToReq;a++) {
       char fromSlave = Wire.read();
       Serial.print(fromSlave);
