@@ -3,19 +3,20 @@
 
 from datetime import datetime
 
+users = ['Shannon','Ophir','Other']
+
 # Serial stuff
 charsToRead = 16
 
 # Log Files
 currentDate = str(datetime.date(datetime.now()))
-defFileLbl = "PIDtest"
+defFileLbl = "datafile"
 defFileType = ".csv"
 delimChar = ','
 
 # Default Text Box Values
 defSpval = 50
 defVlval = 3
-
 
 # Sensor Things
 slaveASensors = {

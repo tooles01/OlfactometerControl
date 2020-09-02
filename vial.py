@@ -2,9 +2,9 @@
 # vial.py
 
 import time, collections
-from PyQt5.QtWidgets import QGroupBox, QComboBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QFormLayout, QTextEdit, QVBoxLayout
+from PyQt5.QtWidgets import (QGroupBox, QComboBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QCheckBox,
+                            QFormLayout, QTextEdit, QVBoxLayout)
 from datetime import datetime
-
 import utils, config
 
 vinQ = 10
@@ -15,6 +15,7 @@ class Vial(QGroupBox):
 
     defSp = str(config.defSpval)
     defVl = str(config.defVlval)
+
     # get default shit from config_slave file
     keysToGet = ['defKp','defKi','defKd']
     slaveVars = utils.getArduinoConfigFile('config_slave.h')
@@ -24,17 +25,16 @@ class Vial(QGroupBox):
 
     def __init__(self, parent, slave, vialNum, sensorType):
         super().__init__()
-
         self.parent = parent
         self.slave = slave          # instance attr - only accessible from the scope of an object
         self.vialNum = vialNum
         self.sensorType = sensorType
 
-        title = "Vial " + str(vialNum) + ": " + self.sensorType
+        title = "Vial " + slave + str(vialNum) + ": " + self.sensorType
         self.setTitle(title)
         
-        self.arduino_time = collections.deque(vinQ*[0],vinQ)
-        self.arduino_data = collections.deque(vinQ*[0],vinQ)
+        #self.arduino_time = collections.deque(vinQ*[0],vinQ)
+        #self.arduino_data = collections.deque(vinQ*[0],vinQ)
 
         self.createTuningBox(parent,slave,vialNum)
         self.createTestingBox()
@@ -47,7 +47,8 @@ class Vial(QGroupBox):
         layout.addWidget(self.testingBox)
         layout.addWidget(self.settingsBox)
         layout.addWidget(self.dataReceiveBox)
-        self.setLayout(layout)
+        self.setLayout(layout)    
+
 
     def createTuningBox(self, parent, slave, vialNum):
         self.tuningBox = QGroupBox("flow control tuning")
@@ -101,6 +102,9 @@ class Vial(QGroupBox):
     def createSettingsBox(self):
         self.settingsBox = QGroupBox("settings")
 
+        recLabel = QLabel(text="Record to datafile:")
+        self.recBox = QCheckBox(checkable=True,checked=True)
+
         sensLabel = QLabel("Sensor type:")
         sensTypeBox = QComboBox()
         sensTypeBox.addItems(config.sensorTypes)
@@ -116,6 +120,7 @@ class Vial(QGroupBox):
         VlButton = QPushButton(text="Go",clicked=lambda: self.sendP('OV',VlEnter.text()))
 
         layout = QFormLayout()
+        layout.addRow(recLabel,self.recBox)
         layout.addRow(sensLabel)
         layout.addRow(sensTypeBox,sensTypeUpdate)
         layout.addRow(SpLabel)
@@ -150,6 +155,7 @@ class Vial(QGroupBox):
         layout.addLayout(flowBoxLayout)
         layout.addLayout(ctrlBoxLayout)
         self.dataReceiveBox.setLayout(layout)
+    
     
     def sendP(self, parameter, val1="", val2="", val3=""):
 
@@ -201,20 +207,19 @@ class Vial(QGroupBox):
         self.setTitle(title)
             
     def appendNew(self, value):
-        
         timeNow = datetime.time(datetime.now())
         flowValue = value[0:4]
         ctrlValue = value[5:8]
 
-        self.arduino_time.appendleft(timeNow)
-        self.arduino_data.appendleft(flowValue)
-        self.arduino_time.pop()
-        self.arduino_data.pop()
+        #self.arduino_time.appendleft(timeNow)
+        #self.arduino_data.appendleft(flowValue)
+        #self.arduino_time.pop()
+        #self.arduino_data.pop()
 
         self.receiveBox.append(flowValue)
 
         flowVal = int(flowValue)
         val_SCCM = utils.convertToSCCM(flowVal, self.sensorType)
         self.flowBox.append(str(val_SCCM))
-
+        
         self.ctrlvalBox.append(ctrlValue)

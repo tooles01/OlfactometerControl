@@ -17,7 +17,7 @@ typedef struct {
   int ctrlPin;
   int valvPin;
 
-  int valveState;
+  int valveState = 0;
   String setting = "testing";
 
   // PID variables
@@ -33,7 +33,6 @@ typedef struct {
   int prevOutput;
   int output;
   int integral;
-
 
   // receive from master
   unsigned long timeReceived;

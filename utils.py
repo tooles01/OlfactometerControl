@@ -1,17 +1,76 @@
 # ST 2020
 # utils for main GUI
 
-import os, pandas
+import os, pandas, logging
+from datetime import datetime
 import config
 
 currentDate = config.currentDate
 
+def createCustomLogger(name):
+    # create logger
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)  # or else nothing is set?
+    
+    # create formatters
+    file_formatter = logging.Formatter('%(asctime)s.%(msecs)03d : %(name)-10s :%(levelname)-8s: %(message)s',datefmt='%H:%M:%S')
+    console_formatter = logging.Formatter('%(name)-12s: %(levelname)-8s: %(message)s')
+
+    # create file handler
+    file_handler = logging.FileHandler('logFile.txt',mode='a')
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(file_formatter)
+    
+    # create console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.WARNING)
+    console_handler.setFormatter(console_formatter)
+
+    # add handlers to logger
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+    return logger
+
+
+'''
+def setUpLogger(name, logFormat, log_file_name):
+    formatter = logging.Formatter(logFormat)
+    handler = logging.FileHandler(log_file_name,mode='a')
+    handler.setFormatter(formatter)
+
+    logger = logging.getLogger(name)
+    logger.addHandler(handler)
+
+    return logger
+
+def setup_custom_logger(name):
+    formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(name)s %(levelname)-8s %(message)s',
+                                    datefmt='%H:%M:%S')
+    handler = logging.FileHandler('log.txt',mode='a')
+    handler.setFormatter(formatter)
+    #file_handler = logging.StreamHandler()
+    
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+
+    return logger
+'''
 def getInCorrectDirectory():
+    # we need this for the arduino config files
     path00 = '~\\Dropbox'
     path01 = '\\OlfactometerEngineeringGroup\\Control\\software\\github repo'
     PATH = path00 + path01
     x = os.path.expanduser(PATH)
     os.chdir(x)
+
+def makeNewFileName(lastExpNum):
+    newExpNum = lastExpNum + 1
+    newExpNum = str(newExpNum).zfill(2)
+    newFileName = currentDate + '_' + config.defFileLbl + '_' + str(newExpNum)
+    return newFileName
+
 
 def getArduinoConfigFile(fileName):
     newDict = {}
@@ -122,7 +181,19 @@ def getCalibrationDict(fileName,sheet,rowsb4Header,columns):
     
     return sccm2Ard, ard2Sccm
 
+def getTimeNow():
+    timeNow = datetime.time(datetime.now())         # type: 'datetime.time'
+    timeNow_f = timeNow.strftime('%H:%M:%S.%f')     # type: 'str'
+    timeNow_str = timeNow_f[:-3]                    # type: 'str' (get rid of last 3 ms)
 
+    return timeNow_str
+
+
+def writeToFile(vial, param, flow, ctrl):
+    timeNow = getTimeNow()
+    strToWrite = timeNow,vial,param,flow,ctrl
+    
+    return strToWrite
 
 '''
 def convToList(numVals, listToConv):
