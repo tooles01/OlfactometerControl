@@ -5,6 +5,8 @@ import os, pandas, logging
 from datetime import datetime
 import config
 
+import glob
+
 currentDate = config.currentDate
 
 def createCustomLogger(name):
@@ -32,6 +34,23 @@ def createCustomLogger(name):
 
     return logger
 
+def findLogFiles():
+    # find dropbox folder
+    try:
+        x = os.path.expanduser('~\\Dropbox')
+        os.chdir(os.path.expanduser(x))
+    except FileNotFoundError:
+        x = os.path.expanduser('~\\Dropbox (NYU Langone Health)')
+        os.chdir(os.path.expanduser(x))
+    # find OlfactometerEngineeringGroup folder
+    oeg = glob.glob(x + '/**/*OlfactometerEngineeringGroup',recursive=True)
+    o = oeg[0]
+    # find logfiles folder
+    f = glob.glob(o + '/**/*logfiles',recursive=True)
+    if len(f) > 1: print("error: somehow more than 1 logfiles folder within OlfactometerEngineeringGroup")
+    else: logFileLocation = f[0]
+
+    return logFileLocation
 
 '''
 def setUpLogger(name, logFormat, log_file_name):

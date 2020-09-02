@@ -28,8 +28,8 @@ class userSelectWindow(QWidget):
     
     def createDirectorySelectBox(self):
         self.dirSelectBox = QGroupBox()
-        defConfigDir = 'C:\\Users\\shann\\Dropbox\\OlfactometerEngineeringGroup\\Control\\software\\github repo'
-        defLogDir = 'C:\\Users\\shann\\Dropbox\\OlfactometerEngineeringGroup\\Control\\software\\github repo\\logfiles'
+        defConfigDir = os.getcwd()          # assuming the config files are in the same folder as this file
+        defLogDir = utils.findLogFiles()
         
         configToolTip = 'Directory that contains config_master.h and config_slave.h'
         configDirLabel = QLabel(text="Config File Directory:",toolTip=configToolTip)
@@ -109,8 +109,7 @@ class userSelectWindow(QWidget):
                     if not 'config_master.h' in files:  logger.error('selected config directory does not contain config_master.h - select a different directory')
                     if not 'config_slave.h' in files:   logger.error('selected config directory does not contain config_slave.h - select a different directory')
                 else:
-                    logger.info('User: %s', selected_user)
-                    logger.info('~~~Finished setup~~~')
+                    logger.info('~~~Finished setup~~~\tUser: %s', selected_user)
 
                     # get default slave information
                     os.chdir(selected_configDir)
