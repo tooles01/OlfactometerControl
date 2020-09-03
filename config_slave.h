@@ -1,6 +1,7 @@
 // CONFIG_SLAVE.H
 
-const int timeToWait = 2;	// time to wait before running PID on same line
+const int timeToWait = 2;		// time to wait before running PID on same line
+const int maxValveOpenTime = 5000;	// max time for isolation valve to be open (ms)
 
 float defKp = 0.050;
 float defKi = 0.002;
@@ -36,6 +37,7 @@ typedef struct {
 
   // receive from master
   unsigned long timeReceived;
-  unsigned long timeToClose;
+  unsigned long valveOpened;
+  unsigned long timeToClose = 0;
 } vialInfo;
 

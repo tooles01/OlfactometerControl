@@ -1,11 +1,11 @@
 // ST 2020
-// slave_A.ino
+// slave_B.ino
 
 #include <Wire.h>
-#include <C:\Users\shann\Dropbox\OlfactometerEngineeringGroup\Control\software\github repo\config_master.h>
-#include <C:\Users\shann\Dropbox\OlfactometerEngineeringGroup\Control\software\github repo\config_slave.h>
+#include <C:\Users\shann\Dropbox\OlfactometerEngineeringGroup\Control\software\OlfactometerControl\config_master.h>
+#include <C:\Users\shann\Dropbox\OlfactometerEngineeringGroup\Control\software\OlfactometerControl\config_slave.h>
 
-const int slaveIndex = 0;
+const int slaveIndex = 1;
 const int slaveAddress = slaveAddresses[slaveIndex];
 const int numVials = vialsPerSlave[slaveIndex];
 
@@ -32,7 +32,6 @@ void setup() {
     digitalWrite(arr_vials[i].valvPin, LOW);
     arr_vials[i].valveState = digitalRead(arr_vials[i].valvPin);
   }
-  
   Serial.println("\n*****start*****\n");
 }
 
@@ -41,7 +40,7 @@ void loop() {
     unsigned long currentTime = millis();
     
     if (arr_vials[i].valveState == HIGH) {
-      if (currentTime >= arr_vials[i].timeToClose) {
+      if ( (currentTime >= arr_vials[i].timeToClose) || (currentTime >= (arr_vials[i].valveOpened+maxValveOpenTime )) ) {
         digitalWrite(arr_vials[i].valvPin,LOW);
         arr_vials[i].valveState = LOW;
         digitalWrite(arr_vials[i].ctrlPin, LOW);
@@ -52,7 +51,6 @@ void loop() {
     
     unsigned long prevTime = arr_vials[i].prevTime;
     unsigned long timeThatHasElapsed = currentTime - prevTime;
-    
     if (timeThatHasElapsed >= timeToWait) {
       if (arr_vials[i].PIDon == true) {
         runPID(i);
@@ -85,22 +83,6 @@ void runPID(int x) {
   if (output >= 255.0)  { output = 255; }
   if (output <= 0.0)    { output = 0;   }
   analogWrite(arr_vials[x].ctrlPin, output);
-  // PRINT TO SERIAL (for debugging)
-  /*
-  char data[1000];
-  //Serial.print("t:"); Serial.print(currentTime);  Serial.print("\t");
-  sprintf(data,"Sp: %d\t",setpoint);  Serial.print(data);
-  sprintf(data,"Fl: %d\t\t",flowVal);  Serial.print(data);
-  //Serial.print("tEl: "); Serial.print(timeElapsed);  Serial.print("\t");
-  Serial.print("err: ");  Serial.print(error);  Serial.print("\t");
-  Serial.print("P: ");  Serial.print(Pterm);  Serial.print("\t");
-  //Serial.print("Ki: "); Serial.print(arr_vials[x].Ki);  Serial.print("\t");
-  Serial.print("in: ");  Serial.print(integral); Serial.print("\t\t"); 
-  Serial.print("I: ");  Serial.print(Iterm);  Serial.print("\t\t");
-  Serial.print("PID: ");  Serial.print(PIDoutput);  Serial.print("\t\t"); 
-  Serial.print("ctrl: ");   Serial.print(output);
-  Serial.println();
-  */
   arr_vials[x].flowVal = flowVal;
   arr_vials[x].prevTime = currentTime;
   arr_vials[x].prevError = error;
@@ -124,7 +106,6 @@ void receiveEvent() {
     vialToSendNext = vialToSendNext-'0';  // convert to int
   }
   else {
-    //Serial.print("\nreceived string: ");  Serial.println(receivedStr);
     unsigned long timeReceived = millis();
     String receivedParam = "";
     char vial2Update = receivedStr[1];
@@ -138,28 +119,7 @@ void receiveEvent() {
     arr_vials[vialIndex].timeReceived = timeReceived;
     int valueLength = valueString.length();
     
-    if (receivedParam == "Ge") {
-      char data[1000];
-      sprintf(data, "\n\n~~ vial %d current status ~~", vialToUpdate);  Serial.println(data);
-      sprintf(data,"Sp:\t%d",arr_vials[vialIndex].setpoint); Serial.println(data);
-      Serial.print("Kp:\t");  Serial.println(arr_vials[vialIndex].Kp,5);
-      Serial.print("Ki:\t");  Serial.println(arr_vials[vialIndex].Ki,5);
-      Serial.print("Kd:\t");  Serial.println(arr_vials[vialIndex].Kd,5);
-      sprintf(data,"PID on?\t%d",arr_vials[vialIndex].PIDon); Serial.println(data);
-      sprintf(data,"flow:\t%d",arr_vials[vialIndex].flowVal); Serial.println(data);
-      sprintf(data,"ctrl:\t%d",arr_vials[vialIndex].output);  Serial.println(data);
-      Serial.print("Pterm:\t"); Serial.println(arr_vials[vialIndex].Kp*arr_vials[vialIndex].prevError);
-      Serial.print("Iterm:\t"); Serial.println(arr_vials[vialIndex].Ki*arr_vials[vialIndex].integral);
-
-      bool valveState = arr_vials[vialIndex].valveState;
-      Serial.print("valve open?\t");  Serial.println(valveState);
-      if (valveState == HIGH) {
-        Serial.print("\tcurrent time:\t\t"); Serial.println(timeReceived);
-        Serial.print("\tvalve close time:\t");  Serial.println(arr_vials[vialIndex].timeToClose);
-        Serial.print("\t"); Serial.print(arr_vials[vialIndex].timeToClose - timeReceived); Serial.println(" ms remaining");
-      }
-    }
-    else if (receivedParam == "Kx") {
+    if (receivedParam == "Kx") {
       int Pindex = valueString.indexOf('P');
       int Iindex = valueString.indexOf('I');
       int Dindex = valueString.indexOf('D');
@@ -169,7 +129,6 @@ void receiveEvent() {
         int indexOfUS = Pvalue.indexOf('_');  // find next underscore (marks end of value)
         Pvalue.remove(indexOfUS);             // remove underscore and everything after
         float Kp = Pvalue.toFloat();
-        //Serial.print("updating Kp to ");  Serial.println(Kp,5);
         arr_vials[vialIndex].Kp = Kp;
       }
       if (Iindex >=0) {
@@ -178,7 +137,6 @@ void receiveEvent() {
         int indexOfUS = Ivalue.indexOf('_');
         Ivalue.remove(indexOfUS);
         float Ki = Ivalue.toFloat();
-        //Serial.print("updating Ki to ");  Serial.println(Ki,5);
         arr_vials[vialIndex].Ki = Ki;
       }
       if (Dindex >=0) {
@@ -187,7 +145,6 @@ void receiveEvent() {
         int indexOfUS = Dvalue.indexOf('_');
         Dvalue.remove(indexOfUS);
         float Kd = Dvalue.toFloat();
-        //Serial.print("updating Kd to ");  Serial.println(Kd,5);
         arr_vials[vialIndex].Kd = Kd;
       }
     }
@@ -198,11 +155,12 @@ void receiveEvent() {
     else if (receivedParam == "OV") {
       digitalWrite(arr_vials[vialIndex].valvPin, HIGH);
       arr_vials[vialIndex].valveState = HIGH;
-      if (valueLength >= 0) {
+      arr_vials[vialIndex].valveOpened = millis();
+      if (valueLength > 0) {
         arr_vials[vialIndex].PIDon = true;
         float lengthOpen_s = valueString.toFloat();
         float lengthOpen_ms = lengthOpen_s*1000;
-        arr_vials[vialIndex].timeToClose = timeReceived + lengthOpen_ms;;
+        arr_vials[vialIndex].timeToClose = arr_vials[vialIndex].valveOpened + lengthOpen_ms;;
         arr_vials[vialIndex].prevTime = millis(); // need a time for the PID to start at 
       }
     }
