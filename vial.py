@@ -36,58 +36,75 @@ class Vial(QGroupBox):
         #self.arduino_time = collections.deque(vinQ*[0],vinQ)
         #self.arduino_data = collections.deque(vinQ*[0],vinQ)
 
-        self.createTuningBox(parent,slave,vialNum)
-        self.createTestingBox()
-        self.createSettingsBox()
+        self.createFlowTuningBox()
+        self.createVialSettingsBox()
+        self.createDebugBox()
+        self.createRunSettingsBox()
         self.createDataReceiveBoxes()
         
         layout = QHBoxLayout()
         
-        layout.addWidget(self.tuningBox)
-        layout.addWidget(self.testingBox)
-        layout.addWidget(self.settingsBox)
+        #layout.addWidget(self.flowTuningBox)
+        layout.addWidget(self.vialSettingsBox)
+        layout.addWidget(self.debugBox)
+        layout.addWidget(self.runSettingsBox)
         layout.addWidget(self.dataReceiveBox)
         self.setLayout(layout)    
 
+    def createVialSettingsBox(self):
+        self.vialSettingsBox = QGroupBox()
 
-    def createTuningBox(self, parent, slave, vialNum):
-        self.tuningBox = QGroupBox("flow control tuning")
+        recLabel = QLabel(text="Record line to datafile:")
+        self.recBox = QCheckBox(checkable=True,checked=True)
+
+        sensLabel = QLabel("Sensor type:")
+        sensTypeBox = QComboBox()
+        sensTypeBox.addItems(config.sensorTypes)
+        sensTypeBox.setCurrentText(self.sensorType)
+        sensTypeUpdate = QPushButton(text="Update",clicked=lambda: self.updateSensorType(sensTypeBox.currentText()))
+
+        layout = QFormLayout()
+        layout.addRow(recLabel,self.recBox)
+        layout.addRow(sensLabel)
+        layout.addRow(sensTypeBox,sensTypeUpdate)
+        self.vialSettingsBox.setLayout(layout)
+    
+    def createFlowTuningBox(self):
+        self.flowTuningBox = QGroupBox("flow control tuning")
 
         KpLabel = QLabel('Kp:')
         KpEnter = QLineEdit(text=Vial.defKp, maximumWidth=self.lineEditWidth, returnPressed=lambda: self.sendP('Kp',KpEnter.text()))
-        KpSend = QPushButton(text="Send Kp",clicked=lambda: self.sendP('Kp',KpEnter.text()))
+        KpSend = QPushButton(text="Send",clicked=lambda: self.sendP('Kp',KpEnter.text()))
         KpRow = QHBoxLayout()
         KpRow.addWidget(KpLabel)
         KpRow.addWidget(KpEnter)
         KpRow.addWidget(KpSend)
         KiLabel = QLabel('Ki:')
         KiEnter = QLineEdit(text=Vial.defKi, maximumWidth=self.lineEditWidth, returnPressed=lambda: self.sendP('Ki',KiEnter.text()))
-        KiSend = QPushButton(text="Send Ki", clicked=lambda: self.sendP('Ki',KiEnter.text()))
+        KiSend = QPushButton(text="Send", clicked=lambda: self.sendP('Ki',KiEnter.text()))
         KiRow = QHBoxLayout()
         KiRow.addWidget(KiLabel)
         KiRow.addWidget(KiEnter)
         KiRow.addWidget(KiSend)
         KdLabel = QLabel('Kd:')
         KdEnter = QLineEdit(text=Vial.defKd, maximumWidth=self.lineEditWidth, returnPressed=lambda: self.sendP('Kd',KdEnter.text()))
-        KdSend = QPushButton(text="Send Kd", clicked=lambda: self.sendP('Kd',KdEnter.text()))
+        KdSend = QPushButton(text="Send", clicked=lambda: self.sendP('Kd',KdEnter.text()))
         KdRow = QHBoxLayout()
         KdRow.addWidget(KdLabel)
         KdRow.addWidget(KdEnter)
         KdRow.addWidget(KdSend)
         
         SendAllButton = QPushButton(text="Send all K vals",clicked=lambda: self.sendP('Kx',KpEnter.text(),KiEnter.text(),KdEnter.text()))
-        printShit = QPushButton(text="print",clicked=lambda: self.sendP('Ge'))
 
-        tuningBoxLayout = QFormLayout()
-        tuningBoxLayout.addRow(KpRow)
-        tuningBoxLayout.addRow(KiRow)
-        tuningBoxLayout.addRow(KdRow)
-        tuningBoxLayout.addRow(SendAllButton)
-        #tuningBoxLayout.addRow(printShit)
-        self.tuningBox.setLayout(tuningBoxLayout)
+        flowTuningBoxLayout = QFormLayout()
+        flowTuningBoxLayout.addRow(KpRow)
+        flowTuningBoxLayout.addRow(KiRow)
+        flowTuningBoxLayout.addRow(KdRow)
+        flowTuningBoxLayout.addRow(SendAllButton)
+        self.flowTuningBox.setLayout(flowTuningBoxLayout)
     
-    def createTestingBox(self):
-        self.testingBox = QGroupBox("buttons for testing shit")
+    def createDebugBox(self):
+        self.debugBox = QGroupBox("debugging")
 
         self.PIDToggle = QPushButton(text="Turn PID on",checkable=True,toggled=self.toggled_PID)
         self.CtrlToggle = QPushButton(text="Open prop valve",checkable=True,toggled=self.toggled_ctrlOpen)
@@ -97,37 +114,34 @@ class Vial(QGroupBox):
         layout.addWidget(self.PIDToggle)
         layout.addWidget(self.CtrlToggle)
         layout.addWidget(self.VlToggle)
-        self.testingBox.setLayout(layout)
+        self.debugBox.setLayout(layout)
     
-    def createSettingsBox(self):
-        self.settingsBox = QGroupBox("settings")
-
-        recLabel = QLabel(text="Record to datafile:")
-        self.recBox = QCheckBox(checkable=True,checked=True)
-
-        sensLabel = QLabel("Sensor type:")
-        sensTypeBox = QComboBox()
-        sensTypeBox.addItems(config.sensorTypes)
-        sensTypeBox.setCurrentText(self.sensorType)
-        sensTypeUpdate = QPushButton(text="Update",clicked=lambda: self.updateSensorType(sensTypeBox.currentText()))
+    def createRunSettingsBox(self):
+        self.runSettingsBox = QGroupBox("run settings")
 
         SpLabel = QLabel("Setpoint (SCCM):")
         SpEnter = QLineEdit(text=Vial.defSp, maximumWidth=self.lineEditWidth, returnPressed=lambda: self.sendP('Sp',SpEnter.text()))
         SpSend = QPushButton(text="Update", clicked=lambda: self.sendP('Sp',SpEnter.text()))
+        spLayout = QHBoxLayout()
+        spLayout.addWidget(SpLabel)
+        spLayout.addWidget(SpEnter)
+        spLayout.addWidget(SpSend)
 
-        VlLabel = QLabel("Open & hit setpoint for x secs:")
+        VlLabel = QLabel("Open @ setpoint for x secs:")
         VlEnter = QLineEdit(text=Vial.defVl, maximumWidth=self.lineEditWidth, returnPressed=lambda: self.sendP('OV',VlEnter.text()))
         VlButton = QPushButton(text="Go",clicked=lambda: self.sendP('OV',VlEnter.text()))
+        #VlButton = QPushButton(text="Go",toggled=lambda: self.toggled_valveOpen)#=lambda: self.sendP('OV',VlEnter.text()))
+        vlLayout = QHBoxLayout()
+        vlLayout.addWidget(VlLabel)
+        vlLayout.addWidget(VlEnter)
+        vlLayout.addWidget(VlButton)
 
         layout = QFormLayout()
-        layout.addRow(recLabel,self.recBox)
-        layout.addRow(sensLabel)
-        layout.addRow(sensTypeBox,sensTypeUpdate)
         layout.addRow(SpLabel)
         layout.addRow(SpEnter,SpSend)
         layout.addRow(VlLabel)
         layout.addRow(VlEnter,VlButton)
-        self.settingsBox.setLayout(layout)
+        self.runSettingsBox.setLayout(layout)
     
     def createDataReceiveBoxes(self):
         self.dataReceiveBox = QGroupBox("data received")
@@ -171,6 +185,8 @@ class Vial(QGroupBox):
             else:       str_Kd = ""
             value = str_Kp + str_Ki + str_Kd
             value = value[1:]   # remove the extra underscore at front
+        #elif parameter == 'OV':
+            
         else:
             value = val1
         
@@ -192,7 +208,7 @@ class Vial(QGroupBox):
             self.sendP('CC')
             self.CtrlToggle.setText('Open prop valve')
     
-    def toggled_valveOpen(self, checked):
+    def toggled_valveOpen(self, checked, value=""):
         if checked:
             self.sendP('OV')
             self.VlToggle.setText('Close Iso Valve')
