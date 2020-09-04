@@ -24,44 +24,44 @@ import utils, config, slave, vial
 '''
 currentDate = utils.currentDate
 charsToRead = config.charsToRead
-programTypes = ['2 vial testing ']
+programTypes = ['A1 testing','A1 & A2 testing ']
 
 vials = [1,2]
 setpointVals = [10,20,30,40,50]
 
+
 class worker(QObject):
     finished = pyqtSignal()
-    setpointReady = pyqtSignal(str,int,str,str)
+    sendNewParam = pyqtSignal(str,int,str,str)
     
     @pyqtSlot()
     def setpointFunction(self): # a slot takes no params
         for A1 in setpointVals:
-            self.setpointReady.emit('A',1,'Sp',str(A1))
+            self.sendNewParam.emit('A',1,'Sp',str(A1))
             for A2 in setpointVals:
-                self.setpointReady.emit('A',2,'Sp',str(A2))
+                self.sendNewParam.emit('A',2,'Sp',str(A2))
                 time.sleep(1)
         self.finished.emit()
     
-    '''
     @pyqtSlot()
-    def setpointFunction(self):
-        for i in range(1,10):
+    def singleLineSetpointChange(self):
+        for i in setpointVals:
+            self.sendNewParam.emit('A',1,'Sp',str(i))
             time.sleep(5)
-            self.setpointReady.emit(i)
         self.finished.emit()
-    '''
+    
+    #@pyqtSlot()
+    #def singleLine
 
 
 class GUIMain(QWidget):
-    defFilePrefix = config.defFileLbl
     defFileType = config.defFileType
     delimChar = config.delimChar
     defUser = 'Shannon'
 
-    def __init__(self, configDir, todayDir, numSlaves, slaveNames, slaveVials):
+    def __init__(self, configDir, numSlaves, slaveNames, slaveVials):
         super().__init__()
         self.configDir = configDir
-        self.todayDir = todayDir
         self.numSlaves = numSlaves
         self.slaveNames = slaveNames
         self.vPSlave = slaveVials
@@ -70,16 +70,19 @@ class GUIMain(QWidget):
         self.setWindowTitle("GUIMain")
         self.record = False
         
-        # Create logger
+        # Create logger - need to be in correct folder before you do this
         self.logger = utils.createCustomLogger(__name__)
         self.logger.debug('Created logger for %s', __name__)
         self.logger.debug('Current directory: %s', os.getcwd())
         
         # Get config.master things
+        curDir = os.getcwd()
         os.chdir(self.configDir)
         self.ardConfig = utils.getArduinoConfigFile('config_master.h')
-        os.chdir(self.todayDir)
+        os.chdir(curDir)
         
+        self.obj = worker()
+        self.thread1 = QThread()
         self.setUpThreads()
         
         # COLUMN 1
@@ -97,7 +100,7 @@ class GUIMain(QWidget):
         column2Layout = QVBoxLayout()
         self.createSlaveBox()
         column2Layout.addWidget(self.slaveBox)
-        ''' scroll bar for when there's lots of slaves
+        ''' scroll bar for when there's lots of slaves/vials
                 scroll = QScrollArea()
                 scroll.setWidget(slaveBox)
                 column2Layout.addWidget(scroll)
@@ -116,13 +119,15 @@ class GUIMain(QWidget):
 
     
     def setUpThreads(self):
-        self.obj = worker()
-        self.thread1 = QThread()
-        self.obj.setpointReady.connect(self.sendParameter)
+        # create worker and thread
+        #self.obj = worker()
+        #self.thread1 = QThread()
+        # move worker to the thread
         self.obj.moveToThread(self.thread1)
-        self.obj.finished.connect(self.thread1.quit)
-        self.thread1.started.connect(self.obj.setpointFunction)
-    
+        # connect worker signals to method slots
+        self.obj.sendNewParam.connect(self.sendParameter)
+        self.obj.finished.connect(self.threadIsFinished)
+        
     # FUNCTIONS TO CREATE GUI
     def createMainSettingsBox(self):
         self.MainSettingsBox = QGroupBox("Main Settings")
@@ -137,11 +142,11 @@ class GUIMain(QWidget):
         userLayout.addWidget(userSelectCb)
         userLayout.addWidget(userChangeBtn)
 
-        slaveEditBtn = QPushButton(text="Edit # Slaves / # Vials",clicked=self.editSlaveStuff)
+        #slaveEditBtn = QPushButton(text="Edit # Slaves / # Vials",clicked=self.editSlaveStuff)
         
         layout = QVBoxLayout()
         layout.addLayout(userLayout)
-        layout.addWidget(slaveEditBtn)
+        #layout.addWidget(slaveEditBtn)
         self.MainSettingsBox.setLayout(layout)
 
     def createArduinoConnectBox(self):
@@ -159,7 +164,7 @@ class GUIMain(QWidget):
         layout.addRow(self.refreshButton,self.connectButton)
         layout.addRow(QLabel("reading from serial port:"))
         layout.addRow(self.arduinoReadBox)
-        self.arduinoConnectBox.setLayout(layout)  
+        self.arduinoConnectBox.setLayout(layout)
 
     def createMasterBox(self):
         self.masterBox = QGroupBox("Master Settings")
@@ -181,7 +186,7 @@ class GUIMain(QWidget):
 
         self.programSelectCb = QComboBox()
         self.programSelectCb.addItems(programTypes)
-        self.programStartButton = QPushButton(text="Start",checkable=True,toggled=self.programButtonClicked)
+        self.programStartButton = QPushButton(text="Start",checkable=True,toggled=self.programButtonToggled)
 
         layout = QHBoxLayout()
         layout.addWidget(self.programSelectCb)
@@ -226,8 +231,7 @@ class GUIMain(QWidget):
         self.dataFileBox = QGroupBox("Data File (" + self.defFileType + ")")
         
         files = os.listdir()
-        dataFiles = [s for s in files if self.defFilePrefix in s]
-        
+        dataFiles = [s for s in files if config.defFileLbl in s]
         if not dataFiles:
             self.lastExpNum = 0
         else:
@@ -238,16 +242,10 @@ class GUIMain(QWidget):
             self.lastExpNum = int(lastFile[i_us+1:])
         defFileName = utils.makeNewFileName(self.lastExpNum)
 
-        self.logDirLabel = QLineEdit(text=self.todayDir,readOnly=True)
         self.enterFileName = QLineEdit(text=defFileName)
-
-        self.cbA1 = QCheckBox(text='A1',checkable=True,checked=True)
-        self.cbA2 = QCheckBox(text='A2',checkable=True,checked=True)
-        self.cbB1 = QCheckBox(text='B1',checkable=True,checked=True)
-        self.cbB2 = QCheckBox(text='B2',checkable=True,checked=True)
-        cbLayout = QHBoxLayout()
-        cbLayout.addWidget(self.cbA1); cbLayout.addWidget(self.cbA2)
-        cbLayout.addWidget(self.cbB1); cbLayout.addWidget(self.cbB2)
+        #fm = self.enterFileName.fontMetrics()
+        #w = fm.boundingRect(self.enterFileName.text()).width()
+        #self.enterFileName.setMinimumWidth(w+15)
         
         self.recordButton = QPushButton(text="Create File && Start Recording",checkable=True,toggled=self.toggled_record)
         hint = self.recordButton.sizeHint()
@@ -256,12 +254,16 @@ class GUIMain(QWidget):
 
         self.logFileOutputBox = QTextEdit(readOnly=True)
         
-        layout = QFormLayout()
-        layout.addRow(QLabel("Directory:"),self.logDirLabel)
-        layout.addRow(QLabel("File Name:"),self.enterFileName)
-        #layout.addRow(QLabel("Lines to Record:"),cbLayout)
-        layout.addRow(self.recordButton,self.endRecordButton)
-        layout.addRow(self.logFileOutputBox)
+        fileNameLayout = QHBoxLayout()
+        fileNameLayout.addWidget(QLabel("File Name:"))
+        fileNameLayout.addWidget(self.enterFileName)
+        buttonLayout = QHBoxLayout()
+        buttonLayout.addWidget(self.recordButton)
+        buttonLayout.addWidget(self.endRecordButton)
+        layout = QVBoxLayout()
+        layout.addLayout(fileNameLayout)
+        layout.addLayout(buttonLayout)
+        layout.addWidget(self.logFileOutputBox)
 
         self.dataFileBox.setLayout(layout)
     
@@ -342,11 +344,11 @@ class GUIMain(QWidget):
                 except UnicodeDecodeError as err:
                     self.logger.error('Serial read error: %s',err)
             else:
-                self.logger.debug('error - text from Arduino was %s bytes: %s', len(text), text)
+                self.logger.debug('warning - text from Arduino was %s bytes: %s', len(text), text)
 
     def toggled_record(self, checked):
         if checked:
-            self.record = True            
+            self.record = True
             self.enteredFileName = self.enterFileName.text() + self.defFileType
             if not os.path.exists(self.enteredFileName):
                 self.logger.info('Creating new data file: %s',self.enteredFileName)
@@ -405,23 +407,36 @@ class GUIMain(QWidget):
         except AttributeError as err:
             self.logger.warning('Serial port not open, cannot send parameter: %s', str_send)
 
-    def programButtonClicked(self, checked):
+    def programButtonToggled(self, checked):
         if checked:
             self.programStartButton.setText('Stop')
             program2run = self.programSelectCb.currentText()
+            self.logger.info('Starting program: %s',program2run)
             if program2run == programTypes[0]:
-                self.thread1.start()
-                self.logger.info('Starting program: %s', programTypes[0])
-                self.logger.info('\ttest setpoints %s for vials A%s and A%s with 1s rest between each change', setpointVals,vials[0],vials[1])
+                self.slotToConnectTo = self.obj.singleLineSetpointChange
+            elif program2run == programTypes[1]:
+                self.slotToConnectTo = self.obj.setpointFunction
+            
+            self.thread1.started.connect(self.slotToConnectTo)  # connect thread started to worker slot
+            self.thread1.start()
         else:
+            self.logger.info('Program ended')
             self.programStartButton.setText('Start')
-            self.thread1.terminate()
-            self.logger.info('Stop button pressed: program ended')
-
+        
     def userUpdate(self, newUser):
         self.user = newUser
         self.logger.info('User: %s', newUser)
         
+
+    def threadIsFinished(self):
+        self.thread1.quit()
+        self.programStartButton.toggle()
+        self.logger.info('Finished program, quit thread')
+        self.thread1.started.disconnect(self.slotToConnectTo)
+    
+    
+
+
     def editSlaveStuff(self):
         self.logger.error('edit slave info: this function is not set up yet')
         #self.logger.debug('edit slave properties was clicked: opening slaveSetupWindow')
@@ -491,17 +506,6 @@ class GUIMain(QWidget):
             self.logger.debug('manual is checked')
         else:
             self.logger.debug('auto is checked')
-    '''
-    '''
-    def sendMasterParameter(self, slave, parameter, value=""):
-        str_send = 'M' + slave + '_' + parameter + '_' + value
-        bArr_send = str_send.encode()
-        try:
-            self.serial.write(bArr_send)
-        except AttributeError:
-            self.logger('Serial port not open, cannot send: %s', str_send)
-        #if parameter == 'debug_':   self.numBytesIwant = 10
-        #if parameter == 'normal':   self.numBytesIwant = 6
     '''
     '''
     def updateNumSlaves(self):

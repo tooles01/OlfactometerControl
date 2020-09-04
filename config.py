@@ -4,6 +4,7 @@
 from datetime import datetime
 
 users = ['Shannon','Ophir','Other']
+logFileName = 'logFile.txt'
 
 # Serial stuff
 charsToRead = 16
@@ -15,8 +16,8 @@ defFileType = ".csv"
 delimChar = ','
 
 # Default Text Box Values
-defSpval = 50
-defVlval = 3
+defSpval = 100
+defVlval = 5
 
 # Sensor Things
 slaveASensors = {
