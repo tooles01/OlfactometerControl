@@ -9,7 +9,8 @@ import utils, config, PIDtesting
 class userSelectWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("User Select")
+        self.setWindowTitle("Setup Window")
+
         self.userSelectGroupBox = QGroupBox("Select User:")
         self.userSelectCb = QComboBox()
         self.userSelectCb.addItems(config.users)
@@ -94,13 +95,20 @@ class userSelectWindow(QWidget):
             if not selected_configDir:
                 print("pls select a config directory")
             else:
-                # if it doesn't already exist, create today's folder & move into it; create logger
+                # if it doesn't already exist, create today's folder & move into it
                 os.chdir(selected_logDir)
                 today_logDir = selected_logDir + '\\' + config.currentDate
                 if not os.path.exists(today_logDir):
                     os.mkdir(today_logDir)
                 os.chdir(today_logDir)
-                logger = utils.createCustomLogger(__name__)
+                
+                # if log file does not exist, write header for it
+                files = os.listdir()
+                if not config.logFileName in files:
+                    logger = utils.createCustomLogger(__name__)
+                    logger.info('Log File for %s', utils.currentDate)
+                else:
+                    logger = utils.createCustomLogger(__name__)
                 
                 # check that config dir contains files you need
                 os.chdir(selected_configDir)
@@ -109,7 +117,10 @@ class userSelectWindow(QWidget):
                     if not 'config_master.h' in files:  logger.error('selected config directory does not contain config_master.h - select a different directory')
                     if not 'config_slave.h' in files:   logger.error('selected config directory does not contain config_slave.h - select a different directory')
                 else:
-                    logger.info('~~~Finished setup~~~\tUser: %s', selected_user)
+                    logger.info('Using config files found at:  %s', selected_configDir)
+                    logger.info('Log files saving to:  %s', today_logDir)
+                    logger.info('~~~Finished setup~~~')
+                    logger.info('User: %s', selected_user)
 
                     # get default slave information
                     os.chdir(selected_configDir)
@@ -120,7 +131,8 @@ class userSelectWindow(QWidget):
                     
                     # call GUIMain
                     logger.debug('Creating instance of GUIMain')
-                    self.mainWindow = PIDtesting.GUIMain(selected_configDir,today_logDir,defNumSlaves,defSlaveNames,defvPSlave)
+                    os.chdir(today_logDir)
+                    self.mainWindow = PIDtesting.GUIMain(selected_configDir,defNumSlaves,defSlaveNames,defvPSlave)
                     self.mainWindow.show()
                     logger.debug('Closing self')
                     self.close()
