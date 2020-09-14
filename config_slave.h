@@ -37,7 +37,6 @@ typedef struct {
 
   // receive from master
   unsigned long timeReceived;
-  unsigned long valveOpened;
   unsigned long timeToClose = 0;
 } vialInfo;
 

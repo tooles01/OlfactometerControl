@@ -40,7 +40,7 @@ void loop() {
     unsigned long currentTime = millis();
     
     if (arr_vials[i].valveState == HIGH) {
-      if ( (currentTime >= arr_vials[i].timeToClose) || (currentTime >= (arr_vials[i].valveOpened+maxValveOpenTime )) ) {
+      if (currentTime >= arr_vials[i].timeToClose) {
         digitalWrite(arr_vials[i].valvPin,LOW);
         arr_vials[i].valveState = LOW;
         digitalWrite(arr_vials[i].ctrlPin, LOW);
@@ -155,13 +155,15 @@ void receiveEvent() {
     else if (receivedParam == "OV") {
       digitalWrite(arr_vials[vialIndex].valvPin, HIGH);
       arr_vials[vialIndex].valveState = HIGH;
-      arr_vials[vialIndex].valveOpened = millis();
+      arr_vials[vialIndex].timeToClose = millis() + maxValveOpenTime;
       if (valueLength > 0) {
         arr_vials[vialIndex].PIDon = true;
         float lengthOpen_s = valueString.toFloat();
         float lengthOpen_ms = lengthOpen_s*1000;
-        arr_vials[vialIndex].timeToClose = arr_vials[vialIndex].valveOpened + lengthOpen_ms;;
-        arr_vials[vialIndex].prevTime = millis(); // need a time for the PID to start at 
+        if (lengthOpen_ms < maxValveOpenTime) {
+          arr_vials[vialIndex].timeToClose = millis() + lengthOpen_ms;
+          arr_vials[vialIndex].prevTime = millis(); // need a time for the PID to start at 
+        }
       }
     }
     else if (receivedParam == "CV") {
