@@ -2,9 +2,6 @@ import sys
 from PyQt5.QtWidgets import QDialog, QPushButton, QVBoxLayout, QApplication
 from PyQt5 import QtCore, QtGui
 
-
-
-
 import logging, os
 import utils
 
