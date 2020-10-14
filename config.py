@@ -3,21 +3,36 @@
 
 from datetime import datetime
 
-users = ['Shannon','Ophir','Other']
-logFileName = 'logFile.txt'
-
-# Serial stuff
-charsToRead = 16
-
-# Log Files
 currentDate = str(datetime.date(datetime.now()))
-defFileLbl = "datafile"
-defFileType = ".csv"
-delimChar = ','
 
-# Default Text Box Values
+logFileName = 'logFile.txt'
+noPortMsg = ' ~ No COM ports detected ~'
+
+# mainGUI.py
+users = ['Shannon','Ophir','Other']
+
+
+# channel_stuff.py
+defnumChannels = 3
+instTypes = ['olfactometer','oscilloscope','flow sensor','NI-DAQ']
+
+
+noPortMsg = ' ~ No COM ports detected ~'
+
+##### Olfactometer
+defConfig = 'C:\\Users\\shann\\Dropbox\\OlfactometerEngineeringGroup\\Control\\software\\OlfactometerControl'
+testingModes = ['auto','manual']
+charsToRead = 16
+programTypes = ['A1 testing','A1 & A2 testing ']
+
+
 defSpval = 100
 defVlval = 5
+
+fileLbl = "olfadata"
+#defFileLbl = "datafile"
+defFileType = ".csv"
+delimChar = ','
 
 # Sensor Things
 slaveASensors = {
@@ -33,11 +48,7 @@ slaveBSensors = {
     4: 'Honeywell 3100V'
 }
 sensors = [slaveASensors, slaveBSensors]
-
 sensorTypes = ["Honeywell 3100V", "Honeywell 3300V", "Honeywell 5101V"]
-
-
-
 # Flow Sensor Dictionaries
 Honeywell3100_SCCMToArd = {
     200: 1024,
@@ -53,7 +64,6 @@ Honeywell3100_SCCMToArd = {
     5: 257,
     0: 204
 }
-
 Honeywell3100_ArdToSCCM = {
     1024: 200,
     983: 175,
@@ -68,7 +78,6 @@ Honeywell3100_ArdToSCCM = {
     257: 5,
     204: 0
 }
-
 Honeywell3300_SCCMToArd = {
     1000: 1024,
     900: 1004,
@@ -82,7 +91,6 @@ Honeywell3300_SCCMToArd = {
     100: 471,
     0: 205
 }
-
 Honeywell3300_ArdToSCCM = {
     1024: 1000,
     1004: 900,
@@ -96,7 +104,6 @@ Honeywell3300_ArdToSCCM = {
     471: 100,
     205: 0
 }
-
 Honeywell5101_SCCMtoArd = {
     1000: 1024,
     4000: 850,
@@ -105,16 +112,16 @@ Honeywell5101_SCCMtoArd = {
     1000: 369,
     0: 205
 }
-
 Honeywell5101_ArdToSCCM = {
     1024: 1000,
     850: 4000,
     686: 3000,
     532: 2000,
-    369: 1000,
-    205: 0
+    395: 1100,
+    379: 1000,
+    365: 900,
+    240: 0
 }
-
 
 sccmToArd = {
     'Honeywell 3100V': Honeywell3100_SCCMToArd,

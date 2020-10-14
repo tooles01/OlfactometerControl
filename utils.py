@@ -1,81 +1,90 @@
 # ST 2020
 # utils for main GUI
 
-import os, pandas, logging
+import os, logging, glob
+#import pandas
 from datetime import datetime
 import config
 
-import glob
-
 currentDate = config.currentDate
+logFileName = config.logFileName
 
-def createCustomLogger(name):
-    # create logger
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)  # or else nothing is set?
-    
-    # create formatters
-    file_formatter = logging.Formatter('%(asctime)s.%(msecs)03d : %(name)-10s :%(levelname)-8s: %(message)s',datefmt='%H:%M:%S')
-    console_formatter = logging.Formatter('%(name)-12s: %(levelname)-8s: %(message)s')
 
-    # create file handler
-    file_handler = logging.FileHandler('logFile.txt',mode='a')
-    file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(file_formatter)
-    
-    # create console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.WARNING)
-    console_handler.setFormatter(console_formatter)
-
-    # add handlers to logger
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-
-    return logger
-
-def findLogFiles():
-    # find dropbox folder
+def findLogFolder():
+    # find Dropbox
     try:
         x = os.path.expanduser('~\\Dropbox')
-        os.chdir(os.path.expanduser(x))
     except FileNotFoundError:
         x = os.path.expanduser('~\\Dropbox (NYU Langone Health)')
-        os.chdir(os.path.expanduser(x))
+    
     # find OlfactometerEngineeringGroup folder
     oeg = glob.glob(x + '/**/*OlfactometerEngineeringGroup',recursive=True)
     o = oeg[0]
     # find logfiles folder
     f = glob.glob(o + '/**/*logfiles',recursive=True)
-    if len(f) > 1: print("error: somehow more than 1 logfiles folder within OlfactometerEngineeringGroup")
-    else: logFileLocation = f[0]
+    logFileDirectory = f[0] # assume there is only 1 logfiles folder there
 
-    return logFileLocation
+    return logFileDirectory
 
-'''
-def setUpLogger(name, logFormat, log_file_name):
-    formatter = logging.Formatter(logFormat)
-    handler = logging.FileHandler(log_file_name,mode='a')
-    handler.setFormatter(formatter)
-
-    logger = logging.getLogger(name)
-    logger.addHandler(handler)
-
-    return logger
-
-def setup_custom_logger(name):
-    formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(name)s %(levelname)-8s %(message)s',
-                                    datefmt='%H:%M:%S')
-    handler = logging.FileHandler('log.txt',mode='a')
-    handler.setFormatter(formatter)
-    #file_handler = logging.StreamHandler()
+def createLogger(name):
+    # if today folder doesn't exist, make it
+    logDir = findLogFolder()
+    today_logDir = logDir + '\\' + currentDate
+    if not os.path.exists(today_logDir):
+        os.mkdir(today_logDir)
     
+    # create logger
+    os.chdir(today_logDir) # move into directory before creating logger (you can also move just before creating the filehandler, but I'd rather do it here)
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
-    logger.addHandler(handler)
 
+    # formatters
+    file_formatter = logging.Formatter('%(asctime)s.%(msecs)03d : %(name)-14s :%(levelname)-8s: %(message)s',datefmt='%H:%M:%S')
+    console_formatter = logging.Formatter('%(name)-12s: %(levelname)-8s: %(message)s')
+    
+    # File handler
+    file_handler = logging.FileHandler(config.logFileName,mode='a')
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
+    
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(console_formatter)
+    logger.addHandler(console_handler)
+
+    # first file entry
+    anythingInIt = os.stat(logFileName).st_size
+    if anythingInIt == 0:   # if logfile is empty
+        logger.info('~~ Log File for %s ~~', currentDate)
+        logger.info('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+    
+    logger.debug('Created logger (%s)', name)
     return logger
-'''
+
+
+
+def findConfigFolder():
+    # find Dropbox
+    try:
+        x = os.path.expanduser('~\\Dropbox')
+    except FileNotFoundError:
+        x = os.path.expanduser('~\\Dropbox (NYU Langone Health)')
+
+    # find OlfactometerEngineeringGroup folder
+    oeg = glob.glob(x + '/**/*OlfactometerEngineeringGroup',recursive=True)
+    o = oeg[0]
+
+    # find OlfactometerControl folder
+    f = glob.glob(o + '/**/*OlfactometerControl',recursive=True)
+    configFileDirectory = f[0]
+
+    return configFileDirectory
+
+
+
+
 def getInCorrectDirectory():
     # we need this for the arduino config files
     path00 = '~\\Dropbox'
@@ -84,10 +93,10 @@ def getInCorrectDirectory():
     x = os.path.expanduser(PATH)
     os.chdir(x)
 
-def makeNewFileName(lastExpNum):
+def makeNewFileName(fileType, lastExpNum):
     newExpNum = lastExpNum + 1
     newExpNum = str(newExpNum).zfill(2)
-    newFileName = currentDate + '_' + config.defFileLbl + '_' + str(newExpNum)
+    newFileName = currentDate + '_' + fileType + '_' + str(newExpNum)
     return newFileName
 
 
@@ -178,7 +187,7 @@ def convertToInt(SCCMval, sensor):
 
     return ardVal
 
-
+'''
 def getCalibrationDict(fileName,sheet,rowsb4Header,columns):
     sccm2Ard = {}
     ard2Sccm = {}
@@ -199,7 +208,7 @@ def getCalibrationDict(fileName,sheet,rowsb4Header,columns):
         print("cant find the file :/", err)
     
     return sccm2Ard, ard2Sccm
-
+'''
 def getTimeNow():
     timeNow = datetime.time(datetime.now())         # type: 'datetime.time'
     timeNow_f = timeNow.strftime('%H:%M:%S.%f')     # type: 'str'
