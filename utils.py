@@ -12,14 +12,13 @@ logFileName = config.logFileName
 
 def findLogFolder():
     # find Dropbox
-    try:
-        x = os.path.expanduser('~\\Dropbox')
-    except FileNotFoundError:
-        x = os.path.expanduser('~\\Dropbox (NYU Langone Health)')
-    
-    # find OlfactometerEngineeringGroup folder
+    x = os.path.expanduser('~\\Dropbox')
     oeg = glob.glob(x + '/**/*OlfactometerEngineeringGroup',recursive=True)
+    if not oeg:
+        x = os.path.expanduser('~\\Dropbox (NYU Langone Health)')
+        oeg = glob.glob(x + '/**/*OlfactometerEngineeringGroup',recursive=True)
     o = oeg[0]
+
     # find logfiles folder
     f = glob.glob(o + '/**/*logfiles',recursive=True)
     logFileDirectory = f[0] # assume there is only 1 logfiles folder there
@@ -67,15 +66,13 @@ def createLogger(name):
 
 def findConfigFolder():
     # find Dropbox
-    try:
-        x = os.path.expanduser('~\\Dropbox')
-    except FileNotFoundError:
-        x = os.path.expanduser('~\\Dropbox (NYU Langone Health)')
-
-    # find OlfactometerEngineeringGroup folder
+    x = os.path.expanduser('~\\Dropbox')
     oeg = glob.glob(x + '/**/*OlfactometerEngineeringGroup',recursive=True)
+    if not oeg:
+        x = os.path.expanduser('~\\Dropbox (NYU Langone Health)')
+        oeg = glob.glob(x + '/**/*OlfactometerEngineeringGroup',recursive=True)
     o = oeg[0]
-
+    
     # find OlfactometerControl folder
     f = glob.glob(o + '/**/*OlfactometerControl',recursive=True)
     configFileDirectory = f[0]
