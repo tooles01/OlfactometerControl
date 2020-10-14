@@ -97,13 +97,12 @@ class NiDaq(QGroupBox):
     def getPorts(self):
         self.portWidget.clear()
         local_system = nidaqmx.system.System.local()
-        devices_connected_names = local_system.devices.device_names
-        ports = nidaqmx.system.system.System().devices.device_names
-        if ports:
+        try:
+            ports = nidaqmx.system.system.System().devices.device_names
             for ser in ports:
                 ser_str = str(ser)
                 self.portWidget.addItem(ser_str)
-        else:
+        except FileNotFoundError:
             self.portWidget.addItem(noPortMsg)
         self.port = self.portWidget.currentText()
     
