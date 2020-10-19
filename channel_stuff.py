@@ -14,9 +14,7 @@ noPortMsg = config.noPortMsg
 instTypes = config.instTypes
 
 btnWidth = 50
-textEditWidth = 125
-whatDoOptions = ["Read & Write", "Read Only", "Write Only","Read & Record", "Don't read"]
-baudrate = 9600
+
 
 class channelObj(QObject):
     def __init__(self, port="", instrument="", name=""):
@@ -119,7 +117,6 @@ class channelGroupBoxObject(QGroupBox):
         super().__init__()
         self.name = name
         self.instrument = instrument
-        self.whatDo = whatDoOptions[0]
         
         self.checkBox = QCheckBox(checked=True)
         self.checkBoxLbl = QLabel(text=self.name)
@@ -129,6 +126,7 @@ class channelGroupBoxObject(QGroupBox):
         self.logger = utils.createLogger(loggerName)
 
         self.createInfoSpace()
+        #self.infoSpace.setFixedWidth(210)
         self.createInstrumentWidget()
 
         self.layout = QHBoxLayout()
@@ -170,7 +168,6 @@ class channelGroupBoxObject(QGroupBox):
         layout1.addRow(self.instLbl,self.instWidget)
         layout1.addRow(self.updateButton)
         self.infoSpace.setLayout(layout1)
-        self.infoSpace.setFixedWidth(210)
     
     def createInstrumentWidget(self):        
         if self.instrument == 'olfactometer':
