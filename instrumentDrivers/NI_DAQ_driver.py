@@ -4,36 +4,37 @@
 # need to install NI-DAQmx driver from NI website
 # then install NI-DAQmx Python API by running python -m pip install nidaqmx
 
-import time, serial
+import time
 from PyQt5.QtWidgets import (QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QTextEdit, QWidget,
-                             QLabel, QLineEdit, QPushButton, QScrollArea, QVBoxLayout)
+                             QLabel, QLineEdit, QPushButton, QVBoxLayout)
 from PyQt5.QtCore import QThread, QObject, pyqtSignal, pyqtSlot
 import nidaqmx
-import config, utils
+import utils
 
 noPortMsg = '~ No NI devices detected ~'
 analogChannel = 'ai0'
-channelIWant = 'Dev2/ai0'
 
 timeBt_Hz = 1000
 timeBt_s = 1/timeBt_Hz
-#timeBtReadings = timeBt_s*1000    # in ms
-timeBtReadings = 1 # in ms
+timeBtReadings = timeBt_s*1000    # in ms
 
 
 class worker(QObject):
     sendTheData = pyqtSignal(float)
 
-    def __init__(self):
+    def __init__(self, devName):
         super().__init__()
         self.readTheStuff = False
-        self.timeToSleep = timeBtReadings/1000
+        self.timeToSleep = timeBtReadings
+        self.devName = devName
+        self.analogChan = analogChannel
     
     @pyqtSlot()
     def readData(self):
+        channelIWant = self.devName + '/' + self.analogChan
         t = nidaqmx.Task()      # create a task
         t.ai_channels.add_ai_voltage_chan(channelIWant) # add analog input channel to this task
-        while self.readTheStuff == True:        # read from it
+        while self.readTheStuff == True:
             value = t.read(1)
             value = value[0]
             self.sendTheData.emit(value)
@@ -51,10 +52,8 @@ class NiDaq(QGroupBox):
         loggerName = className + ' (' + self.name + ')'
         self.logger = utils.createLogger(loggerName)
 
-        self.setUpThreads()
-
         self.createConnectBox()
-        self.connectBox.setFixedWidth(325)
+        #self.connectBox.setFixedWidth(325)
         self.createDataReceiveBoxes()
 
         mainLayout = QHBoxLayout()
@@ -74,11 +73,11 @@ class NiDaq(QGroupBox):
         self.refreshButton = QPushButton(text="Refresh",clicked=self.getPorts)
         self.getPorts()
 
-        channelLbl = QLabel(text="analog channel in:")
-        self.channelIWant = self.port + '/' + analogChannel
-        self.channelToRead = QLineEdit(text=self.channelIWant)
-        self.channelToRead.setReadOnly(True)
-
+        channelLbl = QLabel(text="channel to read:")
+        self.channelToRead = QLineEdit(readOnly=True)
+        if self.port != noPortMsg:
+            self.channelToRead.setText(self.port + '/' + analogChannel)
+        
         readLbl = QLabel(text="raw data from serial port:")
         self.rawReadDisplay = QTextEdit(readOnly=True)
         self.rawReadSpace = QWidget()
@@ -99,9 +98,12 @@ class NiDaq(QGroupBox):
         local_system = nidaqmx.system.System.local()
         try:
             ports = nidaqmx.system.system.System().devices.device_names
-            for ser in ports:
-                ser_str = str(ser)
-                self.portWidget.addItem(ser_str)
+            if ports:
+                for ser in ports:
+                    ser_str = str(ser)
+                    self.portWidget.addItem(ser_str)
+            else:
+                self.portWidget.addItem(noPortMsg)
         except FileNotFoundError:
             self.portWidget.addItem(noPortMsg)
         self.port = self.portWidget.currentText()
@@ -119,21 +121,12 @@ class NiDaq(QGroupBox):
     def toggled_connect(self, checked):
         if checked:
             self.logger.debug('clicked connect button')
-
             self.portWidget.setEnabled(False)
-            self.connectButton.setText('Stop reading from ' + str(self.port))
             self.refreshButton.setEnabled(False)
+            self.connectButton.setText('Stop reading from ' + str(self.port))
 
-            '''
-                try:
-                    if self.t:
-                        self.logger.debug('task already exists')    # don't do anything
-                except AttributeError:
-                    self.t = nidaqmx.Task()
-                    self.t.ai_channels.add_ai_voltage_chan(self.channelIWant)
-            '''
+            self.setUpThreads()
             self.obj.readTheStuff = True
-            self.thread1.start()
         
         else:
             self.logger.debug('disconnect')
@@ -141,16 +134,15 @@ class NiDaq(QGroupBox):
             self.connectButton.setText('Connect to ' + str(self.port))
             self.refreshButton.setEnabled(True)
 
-            self.thread1.quit()
             self.obj.readTheStuff = False
-
     
     def setUpThreads(self):
-        self.obj = worker()
+        self.obj = worker(self.port)
         self.thread1 = QThread()
         self.obj.moveToThread(self.thread1)
         self.obj.sendTheData.connect(self.taskFunction)
         self.thread1.started.connect(self.obj.readData)
+        self.thread1.start()
 
     
     # RECEIVE DATA
