@@ -23,7 +23,7 @@ noPortMsg = ' ~ No COM ports detected ~'
 defConfig = 'C:\\Users\\shann\\Dropbox\\OlfactometerEngineeringGroup\\Control\\software\\OlfactometerControl'
 testingModes = ['auto','manual']
 charsToRead = 16
-programTypes = ['A1 testing','A1 & A2 testing ']
+programTypes = ['A1 50cc-5s (10x)','A1 testing','A1 & A2 testing ']
 
 
 defSpval = 100
