@@ -48,6 +48,21 @@ class worker(QObject):
             time.sleep(5)
         self.finished.emit()
 
+    @pyqtSlot()
+    def A1repeatSetpoint(self):
+        numTimes = 10
+        setpoint = 50
+        lengthOpen = 5
+        lengthRest = 5
+        
+        self.sendNewParam.emit('A',1,'Sp',str(setpoint))    # set the setpoint
+        time.sleep(1)
+        
+        for i in range(numTimes):
+            self.sendNewParam.emit('A',1,'OV',str(lengthOpen))
+            time.sleep(lengthOpen)
+            time.sleep(lengthRest)
+        self.finished.emit()
 
 
 class olfactometer(QGroupBox):
@@ -79,7 +94,7 @@ class olfactometer(QGroupBox):
         
         # COLUMN 1
         self.createConnectBox()
-        self.connectBox.setFixedWidth(325)
+        #self.connectBox.setFixedWidth(325)
         
         # COLUMN 2
         self.column2Layout = QVBoxLayout()
@@ -202,8 +217,6 @@ class olfactometer(QGroupBox):
             self.endRecordButton.setEnabled(False)
             self.programStartButton.setEnabled(False)
 
-    
-    
 
 
 
@@ -304,7 +317,6 @@ class olfactometer(QGroupBox):
         self.dataFileBox.setFixedWidth(col2Width)
     
     
-    
     def createSlaveGroupBox(self):
         self.slaveGroupBox = QGroupBox("Slave Settings")
         
@@ -321,27 +333,18 @@ class olfactometer(QGroupBox):
             s.resize(s.sizeHint())
             allSlaves_layout.addWidget(s)
         
-        self.allSlavesGb = QWidget()
-        self.allSlavesGb.setLayout(allSlaves_layout)
+        self.allSlavesWid = QWidget()
+        self.allSlavesWid.setLayout(allSlaves_layout)
 
         self.slaveScrollArea = QScrollArea()
-        self.slaveScrollArea.setWidget(self.allSlavesGb)
-        #perfectWidth = self.allSlavesGb.width() + 20
-        #maxWidth = 800
-        #if perfectWidth <= maxWidth:
-        #    SSA_width = perfectWidth
-        #else:
-        #    SSA_width = maxWidth
-        #self.slaveScrollArea.setFixedWidth(SSA_width)   # pos change to minimumwidth
+        self.slaveScrollArea.setWidget(self.allSlavesWid)
 
         self.slaveBox_layout = QHBoxLayout()
         self.slaveBox_layout.addWidget(self.slaveScrollArea)
-
         self.slaveGroupBox.setLayout(self.slaveBox_layout)
 
 
     # ACTUAL FUNCTIONS THE THING NEEDS
-    
     def receive(self):
         if self.serial.canReadLine() == True:
             text = self.serial.readLine(1024)
@@ -459,15 +462,20 @@ class olfactometer(QGroupBox):
             program2run = self.programSelectCb.currentText()
             self.logger.info('Starting program: %s',program2run)
             if program2run == programTypes[0]:
+                self.slotToConnectTo = self.obj.A1repeatSetpoint
+            if program2run == programTypes[1]:  # A1 testing
                 self.slotToConnectTo = self.obj.singleLineSetpointChange
-            elif program2run == programTypes[1]:
+            if program2run == programTypes[2]:
                 self.slotToConnectTo = self.obj.setpointFunction
             
             self.thread1.started.connect(self.slotToConnectTo)  # connect thread started to worker slot
             self.thread1.start()
         else:
-            self.logger.info('Program ended')
             self.programStartButton.setText('Start')
+            if self.thread1.isRunning():
+                self.logger.info('Program ended')
+                self.thread1.quit()
+                self.thread1.started.disconnect(self.slotToConnectTo)
     
     def updateMode(self):
         self.mode = self.modeCb.currentText()
@@ -479,7 +487,7 @@ class olfactometer(QGroupBox):
                 if self.mode == 'manual':
                     v.changeMode('manual')
             s.resize(s.sizeHint())
-        self.allSlavesGb.resize(self.allSlavesGb.sizeHint())
+        self.allSlavesWid.resize(self.allSlavesWid.sizeHint())
         self.slaveScrollArea.resize(self.slaveScrollArea.sizeHint())
         #self.slaveGroupBox.resize(self.slaveGroupBox.sizeHint())
         #self.resize(self.sizeHint())
@@ -487,10 +495,10 @@ class olfactometer(QGroupBox):
         #widget_height = self.slaves[0].height() + self.slaves[1].height()
         
     def threadIsFinished(self):
-        self.thread1.quit()
+        #self.thread1.quit()
         self.programStartButton.toggle()
-        self.logger.info('Finished program, quit thread')
-        self.thread1.started.disconnect(self.slotToConnectTo)
+        #self.logger.info('Finished program, quit thread')
+        #self.thread1.started.disconnect(self.slotToConnectTo)
 
     def updatePort(self, newPort):
         self.port = newPort
