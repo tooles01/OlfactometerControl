@@ -132,7 +132,7 @@ class olfactometer(QGroupBox):
 
         readLbl = QLabel(text="raw data from serial port:")
         self.rawReadDisplay = QTextEdit(readOnly=True)
-        self.rawReadDisplay.setFixedWidth(textEditWidth)
+        #self.rawReadDisplay.setFixedWidth(textEditWidth)
         self.rawReadSpace = QWidget()
         readLayout = QVBoxLayout()
         readLayout.addWidget(readLbl)
@@ -141,7 +141,7 @@ class olfactometer(QGroupBox):
 
         writeLbl = QLabel(text="wrote to serial port:")
         self.rawWriteDisplay = QTextEdit(readOnly=True)
-        self.rawWriteDisplay.setFixedWidth(textEditWidth)
+        #self.rawWriteDisplay.setFixedWidth(textEditWidth)
         self.rawWriteSpace = QWidget()
         writeLayout = QVBoxLayout()
         writeLayout.addWidget(writeLbl)
