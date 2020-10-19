@@ -8,7 +8,6 @@ from datetime import datetime
 import utils, config
 
 vinQ = 10
-textEditWidth = 80
 lineEditWidth = 45 
 defSp = str(config.defSpval)
 defVl = str(config.defVlval)
@@ -180,13 +179,13 @@ class Vial(QGroupBox):
         receiveBoxLayout.addWidget(receiveBoxLbl)
         receiveBoxLayout.addWidget(self.receiveBox)
 
-        self.flowBox = QTextEdit(readOnly=True, maximumWidth=textEditWidth)
+        self.flowBox = QTextEdit(readOnly=True)
         flowBoxLbl = QLabel(text="Flow (SCCM)")
         flowBoxLayout = QVBoxLayout()
         flowBoxLayout.addWidget(flowBoxLbl)
         flowBoxLayout.addWidget(self.flowBox)
 
-        self.ctrlvalBox = QTextEdit(readOnly=True, maximumWidth=textEditWidth)
+        self.ctrlvalBox = QTextEdit(readOnly=True)
         ctrlvalLbl = QLabel(text="Ctrl val (int)")
         ctrlBoxLayout = QVBoxLayout()
         ctrlBoxLayout.addWidget(ctrlvalLbl)
@@ -215,9 +214,6 @@ class Vial(QGroupBox):
 
             self.mode = newMode
             if self.mode == 'auto':
-                #self.mainLayout = QGridLayout()
-                #self.setLayout(self.mainLayout)
-
                 self.createVialSettingsBox()
                 self.createRunSettingsBox()
                 self.createDataReceiveBoxes()
@@ -226,35 +222,17 @@ class Vial(QGroupBox):
                 self.mainLayout.addWidget(self.dataReceiveBox,0,1,2,1)
                 
             if self.mode == 'manual':
-                #self.mainLayout = QGridLayout()
-                #self.setLayout(self.mainLayout)
-                
                 self.createVialSettingsBox()
                 self.createRunSettingsBox()
                 self.createFlowTuningBox()
                 self.createDebugBox()
                 self.createDataReceiveBoxes()
-                
-                #self.vialSettingsBox.setMinimumWidth(self.vialSettingsBox.sizeHint().width())
-                #self.runSettingsBox.setMinimumWidth(self.runSettingsBox.sizeHint().width())
-                #self.flowTuningBox.setMinimumWidth(self.flowTuningBox.sizeHint().width())
-                #self.debugBox.setMinimumWidth(self.debugBox.sizeHint().width())
-                #self.dataReceiveBox.setMinimumWidth(self.dataReceiveBox.sizeHint().width())
-                '''
-                self.vialSettingsBox.resize(self.vialSettingsBox.sizeHint())
-                self.runSettingsBox.resize(self.runSettingsBox.sizeHint())
-                self.flowTuningBox.resize(self.flowTuningBox.sizeHint())
-                self.debugBox.resize(self.debugBox.sizeHint())
-                self.dataReceiveBox.resize(self.dataReceiveBox.sizeHint())
-                '''
 
                 self.mainLayout.addWidget(self.vialSettingsBox,0,0)
                 self.mainLayout.addWidget(self.runSettingsBox,1,0)
                 self.mainLayout.addWidget(self.flowTuningBox,0,1)
                 self.mainLayout.addWidget(self.debugBox,1,1)
                 self.mainLayout.addWidget(self.dataReceiveBox,0,2,2,1)
-                #widthINeed = self.vialSettingsBox.width() + self.flowTuningBox.width() + self.debugBox.width() + self.runSettingsBox.width() + self.dataReceiveBox.width()
-                #self.resize(widthINeed,self.dataReceiveBox.sizeHint().height())
     
     def sendP(self, parameter, val1="", val2="", val3=""):
 
