@@ -173,7 +173,7 @@ class Vial(QGroupBox):
         self.dataReceiveBox = QGroupBox("data received")
 
         self.receiveBox = QTextEdit(readOnly=True)
-        self.receiveBox.setFixedWidth(210)
+        #self.receiveBox.setFixedWidth(210)
         receiveBoxLbl = QLabel(text="Flow val (int), Flow (SCCM), Ctrl val (int)")
         receiveBoxLayout = QVBoxLayout()
         receiveBoxLayout.addWidget(receiveBoxLbl)
