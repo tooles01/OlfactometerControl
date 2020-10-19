@@ -24,7 +24,7 @@ setpointVals = [10,20,30,40,50]
 defFileType = config.defFileType
 delimChar = config.delimChar
 baudrate = 9600
-textEditWidth = 125
+textEditWidth = 135
 btnWidth = 50
 col2Width = 250
 
@@ -101,6 +101,9 @@ class olfactometer(QGroupBox):
         self.createMasterBox()
         self.createVialProgrammingBox()
         self.createDataFileBox()
+        #self.masterBox.setFixedWidth(col2Width)
+        #self.vialProgrammingBox.setFixedWidth(col2Width)
+        #self.dataFileBox.setFixedWidth(col2Width)
         self.column2Layout.addWidget(self.masterBox)
         self.column2Layout.addWidget(self.vialProgrammingBox)
         self.column2Layout.addWidget(self.dataFileBox)
@@ -239,8 +242,7 @@ class olfactometer(QGroupBox):
         timeupdateLayout = QFormLayout()
         timeupdateLayout.addRow(timeBtReqLbl)
         timeupdateLayout.addRow(timeBtReqBox,timeBtButton)
-        self.masterBox.setLayout(timeupdateLayout)
-        self.masterBox.setFixedWidth(col2Width)
+        self.masterBox.setLayout(timeupdateLayout)        
 
     def createVialProgrammingBox(self):
         self.vialProgrammingBox = QGroupBox("Vial Programming")
@@ -267,7 +269,6 @@ class olfactometer(QGroupBox):
         layout.addLayout(row1)
         layout.addLayout(row2)
         self.vialProgrammingBox.setLayout(layout)
-        self.vialProgrammingBox.setFixedWidth(col2Width)
     
    
     # READ FROM DEVICE
@@ -314,7 +315,7 @@ class olfactometer(QGroupBox):
         layout.addWidget(self.logFileOutputBox)
 
         self.dataFileBox.setLayout(layout)
-        self.dataFileBox.setFixedWidth(col2Width)
+        
     
     
     def createSlaveGroupBox(self):
