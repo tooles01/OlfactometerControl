@@ -155,16 +155,26 @@ void receiveEvent() {
     else if (receivedParam == "OV") {
       digitalWrite(arr_vials[vialIndex].valvPin, HIGH);
       arr_vials[vialIndex].valveState = HIGH;
-      arr_vials[vialIndex].timeToClose = millis() + maxValveOpenTime;
-      if (valueLength > 0) {
+      if (arr_vials[vialIndex].PIDon == false) {
         arr_vials[vialIndex].PIDon = true;
+        arr_vials[vialIndex].prevTime = millis(); // need a time for the PID to start at
+      }
+
+      int lengthToOpen;
+      if (valueLength > 0) {
         float lengthOpen_s = valueString.toFloat();
         float lengthOpen_ms = lengthOpen_s*1000;
         if (lengthOpen_ms < maxValveOpenTime) {
-          arr_vials[vialIndex].timeToClose = millis() + lengthOpen_ms;
-          arr_vials[vialIndex].prevTime = millis(); // need a time for the PID to start at 
+          lengthToOpen = lengthOpen_ms;
+        }
+        else {
+          lengthToOpen = maxValveOpenTime;
         }
       }
+      else {
+        lengthToOpen = maxValveOpenTime;
+      }
+      arr_vials[vialIndex].timeToClose = millis() + lengthToOpen;
     }
     else if (receivedParam == "CV") {
       digitalWrite(arr_vials[vialIndex].valvPin, LOW);
