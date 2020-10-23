@@ -8,6 +8,10 @@ currentDate = str(datetime.date(datetime.now()))
 logFileName = 'logFile.txt'
 noPortMsg = ' ~ No COM ports detected ~'
 
+
+
+arduinoMasterConfigFile = 'config_master.h'
+
 # mainGUI.py
 users = ['Shannon','Ophir','Other']
 
