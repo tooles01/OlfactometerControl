@@ -1,14 +1,13 @@
 # ST 2020
 # olfactometer_driver.py
 
-import csv, os, time, serial, sip
-from datetime import datetime
+import csv, os, time, serial
 from PyQt5 import QtCore, QtSerialPort
 from PyQt5.QtWidgets import (QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QTextEdit, QWidget,
                              QLabel, QLineEdit, QPushButton, QScrollArea, QVBoxLayout)
 from PyQt5.QtCore import QThread, QObject, pyqtSignal, pyqtSlot
 from serial.tools import list_ports
-from instrumentDrivers import slave, vial
+from instrumentDrivers import slave
 import config, utils
 
 currentDate = utils.currentDate
@@ -18,14 +17,13 @@ fileLbl = config.fileLbl
 noPortMsg = config.noPortMsg
 testingModes = config.testingModes
 sensors = config.sensors
+arduinoMasterConfigFile = config.arduinoMasterConfigFile
 
 vials = [1,2]
 setpointVals = [10,20,30,40,50]
 defFileType = config.defFileType
 delimChar = config.delimChar
-baudrate = 9600
 textEditWidth = 135
-btnWidth = 50
 col2Width = 250
 
 class worker(QObject):
@@ -77,19 +75,8 @@ class olfactometer(QGroupBox):
         self.className = type(self).__name__
         loggerName = self.className + ' (' + self.name + ')'
         self.logger = utils.createLogger(loggerName)
-        
-        # get default slave information
-        curDir = os.getcwd()
-        configDir = utils.findConfigFolder()
-        os.chdir(configDir)
-        os.chdir('olfactometer')
-        self.ardConfig_m = utils.getArduinoConfigFile('config_master.h')
-        self.numSlaves = int(self.ardConfig_m.get('numSlaves'))
-        self.slaveNames = self.ardConfig_m.get('slaveNames[numSlaves]')
-        self.vPSlave = self.ardConfig_m.get('vialsPerSlave[numSlaves]')
-        self.defTimebt = self.ardConfig_m.get('timeBetweenRequests')
-        os.chdir(curDir)
 
+        self.getSlaveInfo()
         self.setUpThreads()
         
         # COLUMN 1
@@ -116,8 +103,22 @@ class olfactometer(QGroupBox):
         self.mainLayout.addLayout(self.column2Layout)
         self.mainLayout.addWidget(self.slaveGroupBox)
         self.setLayout(self.mainLayout)
-
         self.setTitle(loggerName)
+
+        self.setConnected(False)
+    
+    
+    def getSlaveInfo(self):
+        curDir = os.getcwd()
+        configDir = utils.findConfigFolder()
+        os.chdir(configDir + '\olfactometer')
+        self.ardConfig_m = utils.getArduinoConfigFile(arduinoMasterConfigFile)
+        self.baudrate = int(self.ardConfig_m.get('baudrate'))
+        self.numSlaves = int(self.ardConfig_m.get('numSlaves'))
+        self.slaveNames = self.ardConfig_m.get('slaveNames[numSlaves]')
+        self.vPSlave = self.ardConfig_m.get('vialsPerSlave[numSlaves]')
+        self.defTimebt = self.ardConfig_m.get('timeBetweenRequests')
+        os.chdir(curDir)
     
     
     # CONNECT TO DEVICE
@@ -132,7 +133,6 @@ class olfactometer(QGroupBox):
 
         readLbl = QLabel(text="raw data from serial port:")
         self.rawReadDisplay = QTextEdit(readOnly=True)
-        #self.rawReadDisplay.setFixedWidth(textEditWidth)
         self.rawReadSpace = QWidget()
         readLayout = QVBoxLayout()
         readLayout.addWidget(readLbl)
@@ -141,7 +141,6 @@ class olfactometer(QGroupBox):
 
         writeLbl = QLabel(text="wrote to serial port:")
         self.rawWriteDisplay = QTextEdit(readOnly=True)
-        #self.rawWriteDisplay.setFixedWidth(textEditWidth)
         self.rawWriteSpace = QWidget()
         writeLayout = QVBoxLayout()
         writeLayout.addWidget(writeLbl)
@@ -184,21 +183,21 @@ class olfactometer(QGroupBox):
         if checked:
             i = self.port.index(':')
             self.comPort = self.port[:i]
-            self.serial = QtSerialPort.QSerialPort(self.comPort,baudRate=baudrate,readyRead=self.receive)
-            self.logger.info('Created serial object at %s',self.comPort)
+            self.serial = QtSerialPort.QSerialPort(self.comPort,baudRate=self.baudrate,readyRead=self.receive)
+            self.logger.debug('Created serial object at %s',self.comPort)
             if not self.serial.isOpen():
                 if self.serial.open(QtCore.QIODevice.ReadWrite):
-                    self.logger.info('successfully opened port (& set mode to ReadWrite)')
+                    self.logger.info('Connected to %s',self.comPort)
                     self.setConnected(True)
                 else:
-                    self.logger.warning('could not successfully open port')
+                    self.logger.warning('could not open port at %s', self.comPort)
                     self.setConnected(False)
             else:
                 self.setConnected(True)
         else:
             try:
                 self.serial.close()
-                self.logger.info('Closed serial port')
+                self.logger.info('Closed serial port at %s',self.comPort)
                 self.setConnected(False)
             except AttributeError:
                 self.logger.debug('Cannot close port; serial object does not exist')
@@ -208,17 +207,19 @@ class olfactometer(QGroupBox):
             self.connectButton.setText('Stop communication w/ ' + self.portStr)
             self.refreshButton.setEnabled(False)
             self.portWidget.setEnabled(False)
-            self.recordButton.setEnabled(True)
-            self.endRecordButton.setEnabled(True)
+            self.masterBox.setEnabled(True)
             self.programStartButton.setEnabled(True)
+            self.slaveGroupBox.setEnabled(True)
+            self.dataFileBox.setEnabled(True)
         else:
             self.connectButton.setText('Connect to ' + self.portStr)
             self.connectButton.setChecked(False)
             self.refreshButton.setEnabled(True)
             self.portWidget.setEnabled(True)
-            self.recordButton.setEnabled(False)
-            self.endRecordButton.setEnabled(False)
+            self.masterBox.setEnabled(False)
             self.programStartButton.setEnabled(False)
+            self.slaveGroupBox.setEnabled(False)
+            self.dataFileBox.setEnabled(False)
 
 
 
@@ -381,9 +382,9 @@ class olfactometer(QGroupBox):
                                     self.logFileOutputBox.append(str(toWrite))
                         
                         except IndexError as err:
-                            self.logger.error('current config file does not include %s', vialInfo)
+                            self.logger.error('arduino master config file does not include vial %s', vialInfo)
                 except UnicodeDecodeError as err:
-                    self.logger.error('Serial read error: %s',err)
+                    self.logger.error('Serial read error: %s\t%s',err,text)
             else:
                 self.logger.debug('warning - text from Arduino was %s bytes: %s', len(text), text)
     
@@ -392,7 +393,7 @@ class olfactometer(QGroupBox):
             self.record = True
             self.enteredFileName = self.enterFileName.text() + defFileType
             if not os.path.exists(self.enteredFileName):
-                self.logger.info('Creating new olfa data file: %s',self.enteredFileName)
+                self.logger.info('Creating new olfa datafile: %s',self.enteredFileName)
                 File = self.enteredFileName, ' '
                 Time = "File Created:", str(currentDate + ' ' + utils.getTimeNow())
                 DataHead = "Time","Vial/Line","Item","Value","Ctrl (prop.valve)"
@@ -440,6 +441,7 @@ class olfactometer(QGroupBox):
         try:
             if self.serial.isOpen():
                 self.serial.write(bArr_send)
+                print(utils.getTimeNow() + '\tsent to Arduino')
                 self.logger.info("sent to %s: %s", self.port, str_send)
                 self.rawWriteDisplay.append(str_send)
                 for s in self.slaves:
@@ -501,12 +503,14 @@ class olfactometer(QGroupBox):
         #self.logger.info('Finished program, quit thread')
         #self.thread1.started.disconnect(self.slotToConnectTo)
 
+    '''
     def updatePort(self, newPort):
         self.port = newPort
-        self.logger.debug('port changed to %s', self.port)
+        self.logger.info('port changed to %s', self.port)
     
     def updateName(self, newName):
         if not self.name == newName:
             self.name = newName
-            self.logger.debug('name changed to %s', self.name)
+            self.logger.info('name changed to %s', self.name)
             self.setTitle(self.name)
+    '''
