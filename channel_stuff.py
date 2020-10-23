@@ -95,13 +95,16 @@ class channelDialog(QDialog):
         self.channelEnterBoxes.setLayout(layout)
 
     def updateNumChannels(self): ##** THIS ALSO REFRESHES COM PORTS bc u make the objects again
-        self.numChannels = self.numCBox.value()
-        self.logger.info("Updating number of channels to %s",self.numChannels)
+        self.numChannels = len(self.channels)
+        newNumChannels = self.numCBox.value()
 
-        self.mainLayout.removeWidget(self.channelEnterBoxes)
-        sip.delete(self.channelEnterBoxes)
-        self.createChannelEnterBoxes()
-        self.mainLayout.insertWidget(1,self.channelEnterBoxes)
+        if self.numChannels != newNumChannels:
+            self.logger.info("Updating # of channels from %s->%s",self.numChannels, newNumChannels)
+            self.numChannels = newNumChannels
+            self.mainLayout.removeWidget(self.channelEnterBoxes)
+            sip.delete(self.channelEnterBoxes)
+            self.createChannelEnterBoxes()
+            self.mainLayout.insertWidget(1,self.channelEnterBoxes)
     
     def openMainGUI(self):
         for i in range(self.numChannels):
@@ -126,7 +129,6 @@ class channelGroupBoxObject(QGroupBox):
         self.logger = utils.createLogger(loggerName)
 
         self.createInfoSpace()
-        #self.infoSpace.setFixedWidth(210)
         self.createInstrumentWidget()
 
         self.layout = QHBoxLayout()

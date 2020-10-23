@@ -46,6 +46,7 @@ class mainGUI(QWidget):
         userLbl = QLabel(text="User:",toolTip="just for logging")
         self.userSelectCb = QComboBox()
         self.userSelectCb.addItems(users)
+        self.user = self.userSelectCb.currentText()
         self.userSelectCb.currentIndexChanged.connect(self.updateUser)
         self.channelChangeBtn = QPushButton(text="Change # of Channels",clicked=self.changeNumChannels)
 
@@ -61,11 +62,12 @@ class mainGUI(QWidget):
         for i in self.channels:
             c_name = i.name
             c_instrument = i.instrument
-            self.logger.info('>> %s; %s', c_name,c_instrument)
+            self.logger.info('>> Creating channel for %s (%s)',c_instrument,c_name)
+            
             channel_groupbox = channel_stuff.channelGroupBoxObject(c_name,c_instrument)
             self.c_Rows.append(channel_groupbox)
             num = self.c_Rows.index(channel_groupbox)
-            self.c_Rows[num].setTitle('Channel ' + str(num + 1))
+            self.c_Rows[num].setTitle('Channel ' + str(num+1))
         
         self.allChannels_layout = QVBoxLayout()
         for i in self.c_Rows:
@@ -117,7 +119,7 @@ class mainGUI(QWidget):
         fileNameLbl = QLabel(text="File Name:")
         defFileName = utils.makeNewFileName(fileLbl, self.lastFileNum)
         self.enterFileName = QLineEdit(text=defFileName)
-        self.recordButton = QPushButton(text="Create && Start Recording",checkable=True,toggled=self.toggled_record)
+        self.recordButton = QPushButton(text="Create && Start Recording",checkable=True,clicked=self.clicked_record)
         hint = self.recordButton.sizeHint()
         self.recordButton.setFixedSize(hint)
         self.endRecordButton = QPushButton(text="End Recording",clicked=self.clicked_endRecord)
@@ -129,15 +131,19 @@ class mainGUI(QWidget):
         layout.addRow(self.recordButton,self.endRecordButton)
         layout.addRow(self.dataFileOutputBox)
         self.dataFileBox.setLayout(layout)
+        
+        self.endRecordButton.setEnabled(False)
     
     
     # FUNCTIONS THAT DO STUFF
     def updateUser(self):
-        self.user = self.userSelectCb.currentText()
-        self.logger.info('User: %s',self.user)
+        newUser = self.userSelectCb.currentText()
+        if self.user != newUser:
+            self.user = newUser
+            self.logger.info('New user: %s', self.user)
     
     def changeNumChannels(self):
-        self.logger.info('changing # of channels')
+        self.logger.debug('changing # of channels')
         
         chSet_dlg = channel_stuff.channelDialog(self.channels)
         if chSet_dlg.exec_() == QDialog.Accepted:
@@ -146,7 +152,7 @@ class mainGUI(QWidget):
             numPrev = len(self.c_Rows)
             numNew = len(self.channels)
             for idx in range(numPrev):  # for each of the previous channels
-                if idx < numNew:        # if this is a value within the newnum
+                if idx < numNew:        # if it's a value within the newnum
                     newChan = self.channels[idx]
                     prevChan = self.c_Rows[idx]
                     if newChan.instrument != prevChan.instrument:   # if instrument is different, make new
@@ -155,9 +161,11 @@ class mainGUI(QWidget):
                         sip.delete(self.c_Rows[idx])
                         self.c_Rows[idx] = newChannel
                         self.allChannels_layout.insertWidget(idx,self.c_Rows[idx])
+                        self.logger.info('Channel %s updated to: %s (%s)', idx, newChan.instrument, newChan.name)
                     else:
-                        if newChan.name != prevChan.name:   # if instrument same but name is different, update name
+                        if newChan.name != prevChan.name:   # if instrument is same but name is different, update name
                             self.c_Rows[idx].name = newChan.name
+                            self.logger.info('Channel %s (%s) name updated to %s', idx,newChan.instrument,newChan.name)
             
             if numPrev > numNew:    # delete extra channels
                 num2Delete = numPrev - numNew
@@ -165,6 +173,7 @@ class mainGUI(QWidget):
                     self.allChannels_layout.removeWidget(self.c_Rows[-1])
                     sip.delete(self.c_Rows[-1])
                     self.c_Rows.pop(-1)
+                    self.logger.info('Channel %s deleted', numPrev-i)
             
             if numPrev < numNew:    # add new channels
                 numChansToMake = numNew - numPrev
@@ -173,6 +182,7 @@ class mainGUI(QWidget):
                     newChannel = channel_stuff.channelGroupBoxObject(name=newChan.name,instrument=newChan.instrument)
                     self.c_Rows.append(newChannel)
                     self.allChannels_layout.addWidget(newChannel)
+                    self.logger.info('Created channel %s: %s (%s)', numPrev+i,newChan.instrument,newChan.name)
 
             numRows = self.whoRecord_layout.count()
             for i in reversed(range(numRows)):
@@ -184,11 +194,15 @@ class mainGUI(QWidget):
             for i in self.c_Rows:
                 self.whoRecord_layout.addRow(i.checkBox,i.checkBoxLbl)
 
-    def toggled_record(self, checked):
+    
+    
+    def clicked_record(self, checked):
         if checked:
+            self.recordButton.setText("Pause Recording")
+            self.endRecordButton.setEnabled(True)
             self.enteredFileName = self.enterFileName.text() + defFileType
             if not os.path.exists(self.enteredFileName):
-                self.logger.info('Creating new main data file: %s',self.enteredFileName)
+                self.logger.info('Creating new datafile: %s',self.enteredFileName)
                 File = self.enteredFileName, ' '
                 Time = "File Created: ", str(currentDate + ' ' + utils.getTimeNow())
                 DataHead = "Time","Instrument","Unit","Value"
@@ -201,16 +215,15 @@ class mainGUI(QWidget):
                     writer.writerow(DataHead)
             else:
                 self.logger.info('Resuming recording to %s', self.enteredFileName)
-            self.recordButton.setText("Pause Recording")
-
+                
         else:
-            self.recordButton.setText("Resume Recording")
             self.logger.info('Paused recording to %s',self.enteredFileName)
+            self.recordButton.setText("Resume Recording")
 
     def clicked_endRecord(self, checked):
-        self.logger.info('End recording')
+        self.logger.info('Ended recording to %s', self.enteredFileName)
         if self.recordButton.isChecked() == True:
-            self.recordButton.toggle()
+            self.recordButton.setChecked(False)
         
         self.lastFileNum = self.lastFileNum + 1
         newFileName = utils.makeNewFileName(fileLbl,self.lastFileNum)
@@ -228,5 +241,7 @@ class mainGUI(QWidget):
                         with open(self.enteredFileName,'a',newline='') as f:
                             writer = csv.writer(f, delimiter=delimChar)
                             writer.writerow(toWrite)
+                            if unit == 'OV':
+                                print(utils.getTimeNow() + '\trecorded to file')
                         display = str(toWrite)
                         self.dataFileOutputBox.append(display[1:-1])
