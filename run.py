@@ -9,6 +9,8 @@ import utils, channel_stuff, mainGUI
 if __name__ == "__main__":
     # Create logger
     mainLogger = utils.createLogger(__name__)
+    logFileLoc = mainLogger.handlers[0].baseFilename
+    mainLogger.info('Logging to %s', logFileLoc)
     
     app1 = QApplication(sys.argv)
     
@@ -16,7 +18,6 @@ if __name__ == "__main__":
     channelObjs = []
     channelObjs.append(channel_stuff.channelObj(name='olfa prototype',instrument='olfactometer'))
     channelObjs.append(channel_stuff.channelObj(name='PID reading',instrument='NI-DAQ'))
-    #channelObjs.append(channel_stuff.channelObj(name='output flow',instrument='flow sensor'))
     
     # Open main window
     mainWindow = mainGUI.mainGUI(channelObjs)
