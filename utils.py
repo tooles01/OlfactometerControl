@@ -8,6 +8,8 @@ import config
 
 currentDate = config.currentDate
 logFileName = config.logFileName
+fileHandlerLogLevel = logging.INFO
+consoleHandlerLogLevel = logging.INFO
 
 
 def findLogFolder():
@@ -39,17 +41,17 @@ def createLogger(name):
 
     # formatters
     file_formatter = logging.Formatter('%(asctime)s.%(msecs)03d : %(name)-14s :%(levelname)-8s: %(message)s',datefmt='%H:%M:%S')
-    console_formatter = logging.Formatter('%(name)-12s: %(levelname)-8s: %(message)s')
+    console_formatter = logging.Formatter('%(name)-14s: %(levelname)-8s: %(message)s')
     
     # File handler
     file_handler = logging.FileHandler(config.logFileName,mode='a')
-    file_handler.setLevel(logging.DEBUG)
+    file_handler.setLevel(fileHandlerLogLevel)
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
     
     # Console handler
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(consoleHandlerLogLevel)
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
 
@@ -58,6 +60,8 @@ def createLogger(name):
     if anythingInIt == 0:   # if logfile is empty
         logger.info('~~ Log File for %s ~~', currentDate)
         logger.info('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+        #logFileLoc = logger.handlers[0].baseFilename
+        #logger.info('Logging to %s', logFileLoc)
     
     logger.debug('Created logger (%s)', name)
     return logger
