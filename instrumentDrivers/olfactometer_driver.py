@@ -105,7 +105,14 @@ class olfactometer(QGroupBox):
         self.setLayout(self.mainLayout)
         self.setTitle(loggerName)
 
-        self.setConnected(False)
+        self.connectButton.setChecked(False)
+        self.refreshButton.setEnabled(True)
+        self.portWidget.setEnabled(True)
+        self.masterBox.setEnabled(False)
+        self.programStartButton.setEnabled(False)
+        self.slaveGroupBox.setEnabled(False)
+        self.dataFileBox.setEnabled(False)
+        #self.setConnected(False)
     
     
     def getSlaveInfo(self):
@@ -317,7 +324,6 @@ class olfactometer(QGroupBox):
 
         self.dataFileBox.setLayout(layout)
         
-    
     
     def createSlaveGroupBox(self):
         self.slaveGroupBox = QGroupBox("Slave Settings")
