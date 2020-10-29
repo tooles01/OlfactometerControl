@@ -172,7 +172,7 @@ def convertToInt(SCCMval, dictionary):
                 val1 = val1-1
                 flow1 = dictionary.get(val1)
             if SCCMval.is_integer() == False:
-                val2 = math.floor(SCCMval)
+                val2 = math.ceil(SCCMval)
             else:
                 val2 = SCCMval+1
             flow2 = dictionary.get(val2)
