@@ -2,7 +2,8 @@
 // master.ino
 
 #include <Wire.h>
-#include <C:\Users\shann\Dropbox\OlfactometerEngineeringGroup\Control\software\github repo\config_master.h>
+//#include <C:\Users\shann\Dropbox\OlfactometerEngineeringGroup\Control\software\github repo\config_master.h>
+#include <C:\Users\SB13FLPC016\Dropbox (NYU Langone Health)\RinbergLab\OlfactometerEngineeringGroup\Control\software\OlfactometerControl\olfactometer\config_master.h>
 
 typedef struct {
   char slaveName;
@@ -18,7 +19,7 @@ slaveInfo arr_slaves[numSlaves];
 void setup() {
   Wire.begin();
   Serial.begin(baudrate);
-  //Serial.setTimeout(50);   // max # of ms to wait for serial data in readString
+  Serial.setTimeout(30);   // max # of ms to wait for serial data in readString
                            //  -> this is how quickly we can send multiple commands in a row from the python GUI without it blending them all together
   for (int i=0;i<numSlaves;i++) {
     arr_slaves[i].slaveName = slaveNames[i];
