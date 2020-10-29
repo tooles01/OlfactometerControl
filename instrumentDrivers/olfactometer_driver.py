@@ -128,6 +128,7 @@ class olfactometer(QGroupBox):
     def getSlaveInfo(self):
         curDir = os.getcwd()
         olfaConfigDir = utils.findOlfaConfigFolder()
+        self.logger.info('getting config files from %s', olfaConfigDir)
         os.chdir(olfaConfigDir)
 
         # VARIABLES FROM MASTER CONFIG FILE
