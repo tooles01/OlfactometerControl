@@ -25,7 +25,7 @@ class worker(QObject):
     def __init__(self, devName):
         super().__init__()
         self.readTheStuff = False
-        self.timeToSleep = timeBtReadings
+        self.timeToSleep = timeBt_s
         self.devName = devName
         self.analogChan = analogChannel
     
@@ -53,11 +53,16 @@ class NiDaq(QGroupBox):
         self.logger = utils.createLogger(loggerName)
 
         self.createConnectBox()
-        #self.connectBox.setFixedWidth(325)
+        self.createSettingsBox()
+        col1 = QVBoxLayout()
+        col1.addWidget(self.connectBox)
+        col1.addWidget(self.settingsBox)
+
         self.createDataReceiveBoxes()
 
         mainLayout = QHBoxLayout()
-        mainLayout.addWidget(self.connectBox)
+        mainLayout.addLayout(col1)
+#        mainLayout.addWidget(self.connectBox)
         mainLayout.addWidget(self.dataReceiveBox)
         self.setLayout(mainLayout)
         self.setTitle(loggerName)
@@ -135,6 +140,7 @@ class NiDaq(QGroupBox):
             self.refreshButton.setEnabled(True)
 
             self.obj.readTheStuff = False
+            self.thread1.quit()
     
     def setUpThreads(self):
         self.obj = worker(self.port)
@@ -144,7 +150,22 @@ class NiDaq(QGroupBox):
         self.thread1.started.connect(self.obj.readData)
         self.thread1.start()
 
-    
+    def createSettingsBox(self):
+        self.settingsBox = QGroupBox("Settings")
+
+        lbl = QLabel("Time bt readings (ms):")
+        self.timeWid = QLineEdit()
+        self.updateBut = QPushButton(text="Update",clicked=self.updateTimeBt)
+
+        layout = QFormLayout()
+        layout.addRow(lbl)
+        layout.addRow(self.timeWid,self.updateBut)
+        self.settingsBox.setLayout(layout)
+
+    def updateTimeBt(self):
+        pass
+        #self.timeBt = self.timeWid.
+
     # RECEIVE DATA
     def createDataReceiveBoxes(self):
         self.dataReceiveBox = QGroupBox("data received")
@@ -171,7 +192,7 @@ class NiDaq(QGroupBox):
     def taskFunction(self, incomingFlt):
         value = incomingFlt
         value_mV = value*1000
-        value_mV = round(value_mV,4)
+        value_mV = round(value_mV,3)
 
         str_value = str(value)
         str_value_mV = str(value_mV)
