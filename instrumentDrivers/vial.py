@@ -244,7 +244,7 @@ class Vial(QGroupBox):
 
         if parameter == 'Sp':
             s_dict = self.parent.sccm2Ard_dicts.get(self.sensDict)
-            calculatedSp = utils.convertToInt(int(val1),s_dict)
+            calculatedSp = utils.convertToInt(float(val1),s_dict)
             value = str(calculatedSp)
         elif parameter == 'Kx':
             if val1:    str_Kp = "_P" + val1
