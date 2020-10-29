@@ -1,7 +1,7 @@
 # ST 2020
 # olfactometer_driver.py
 
-import csv, os, time, serial
+import csv, os, time#, serial
 from PyQt5 import QtCore, QtSerialPort
 from PyQt5.QtWidgets import (QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QTextEdit, QWidget,
                              QLabel, QLineEdit, QPushButton, QScrollArea, QVBoxLayout)
@@ -9,20 +9,25 @@ from PyQt5.QtCore import QThread, QObject, pyqtSignal, pyqtSlot
 from serial.tools import list_ports
 from instrumentDrivers import slave
 import config, utils
+import pandas, numpy
+
+olfFileLbl = config.olfFileLbl
+defFileType = config.defFileType
+delimChar = config.delimChar
 
 currentDate = utils.currentDate
 charsToRead = config.charsToRead
-programTypes = config.programTypes
-fileLbl = config.fileLbl
 noPortMsg = config.noPortMsg
-testingModes = config.testingModes
-sensors = config.sensors
 arduinoMasterConfigFile = config.arduinoMasterConfigFile
+arduinoSlaveConfigFile = config.arduinoSlaveConfigFile
+defSensors = config.defSensors
+programTypes = config.programTypes
+testingModes = config.testingModes
+
+keysToGet = config.keysToGet
 
 vials = [1,2]
 setpointVals = [10,20,30,40,50]
-defFileType = config.defFileType
-delimChar = config.delimChar
 textEditWidth = 135
 col2Width = 250
 
@@ -77,6 +82,7 @@ class olfactometer(QGroupBox):
         self.logger = utils.createLogger(loggerName)
 
         self.getSlaveInfo()
+        #self.getCalibrationTables()
         self.setUpThreads()
         
         # COLUMN 1
@@ -88,12 +94,12 @@ class olfactometer(QGroupBox):
         self.createMasterBox()
         self.createVialProgrammingBox()
         self.createDataFileBox()
-        #self.masterBox.setFixedWidth(col2Width)
-        #self.vialProgrammingBox.setFixedWidth(col2Width)
-        #self.dataFileBox.setFixedWidth(col2Width)
         self.column2Layout.addWidget(self.masterBox)
         self.column2Layout.addWidget(self.vialProgrammingBox)
         self.column2Layout.addWidget(self.dataFileBox)
+        #self.masterBox.setFixedWidth(col2Width)
+        #self.vialProgrammingBox.setFixedWidth(col2Width)
+        #self.dataFileBox.setFixedWidth(col2Width)
         
         # COLUMN 3
         self.createSlaveGroupBox()
@@ -112,21 +118,55 @@ class olfactometer(QGroupBox):
         self.programStartButton.setEnabled(False)
         self.slaveGroupBox.setEnabled(False)
         self.dataFileBox.setEnabled(False)
-        #self.setConnected(False)
-    
     
     def getSlaveInfo(self):
         curDir = os.getcwd()
-        configDir = utils.findConfigFolder()
-        os.chdir(configDir + '\olfactometer')
+        olfaConfigDir = utils.findOlfaConfigFolder()
+        os.chdir(olfaConfigDir)
+
+        # VARIABLES FROM MASTER CONFIG FILE
         self.ardConfig_m = utils.getArduinoConfigFile(arduinoMasterConfigFile)
         self.baudrate = int(self.ardConfig_m.get('baudrate'))
         self.numSlaves = int(self.ardConfig_m.get('numSlaves'))
         self.slaveNames = self.ardConfig_m.get('slaveNames[numSlaves]')
         self.vPSlave = self.ardConfig_m.get('vialsPerSlave[numSlaves]')
         self.defTimebt = self.ardConfig_m.get('timeBetweenRequests')
+        
+        # VARIABLES FROM SLAVE CONFIG FILE
+        self.keysToGet = config.keysToGet
+        self.ardConfig_s = utils.getArduinoConfigFile(arduinoSlaveConfigFile)
+        for key in keysToGet:
+            keyStr = 'self.' + key
+            if key in self.ardConfig_s.keys():
+                exec(keyStr + '=self.ardConfig_s.get(key)')
+            else:
+                exec(keyStr + '="0.000"')
+        
+        # CALIBRATION TABLES
+        filename = 'calibration_values.xlsx'
+        rowsb4header = 2
+        sccmRow = 0
+        ardRow = 2
+        
+        self.sccm2Ard_dicts = {}
+        self.ard2Sccm_dicts = {}
+        x = pandas.ExcelFile(filename)
+        self.cal_sheets = x.sheet_names
+        for s in self.cal_sheets:
+            sccm2Ard = {}
+            ard2Sccm = {}
+            data = x.parse(sheet_name=s, header=rowsb4header)
+            numVals= len(data.values)
+            for i in range(numVals):
+                flowVal = data.iloc[i,sccmRow]
+                ardVal = data.iloc[i,ardRow]
+                if numpy.isnan(ardVal) == False:
+                    if numpy.isnan(flowVal) == False:
+                        sccm2Ard[flowVal] = ardVal
+                        ard2Sccm[ardVal] = flowVal
+            self.sccm2Ard_dicts[s] = sccm2Ard
+            self.ard2Sccm_dicts[s] = ard2Sccm
         os.chdir(curDir)
-    
     
     # CONNECT TO DEVICE
     def createConnectBox(self):
@@ -229,8 +269,6 @@ class olfactometer(QGroupBox):
             self.dataFileBox.setEnabled(False)
 
 
-
-
     # OLFACTOMETER-SPECIFIC FUNCTIONS
     def setUpThreads(self):
         self.obj = worker()
@@ -284,7 +322,7 @@ class olfactometer(QGroupBox):
         self.dataFileBox = QGroupBox("Olfactometer Data File (" + defFileType + ")")
         
         files = os.listdir()
-        dataFiles = [s for s in files if fileLbl in s]
+        dataFiles = [s for s in files if olfFileLbl in s]
         if not dataFiles:
             self.lastExpNum = 0
         else:
@@ -294,7 +332,7 @@ class olfactometer(QGroupBox):
             i_us = lastFile.rfind('_')
             self.lastExpNum = int(lastFile[i_us+1:])
         
-        defFileName = utils.makeNewFileName(fileLbl, self.lastExpNum)
+        defFileName = utils.makeNewFileName(olfFileLbl, self.lastExpNum)
         self.enterFileName = QLineEdit(text=defFileName)
         
         self.recordButton = QPushButton(text="Create && Start Recording",checkable=True,toggled=self.toggled_record)
@@ -330,10 +368,10 @@ class olfactometer(QGroupBox):
         
         self.slaves = []
         for i in range(self.numSlaves):
-            slaveName = self.slaveNames[i]
-            vPSlave = int(self.vPSlave[i])
-            sensor = sensors[i]
-            s_slave = slave.Slave(self,slaveName,vPSlave,sensor)
+            s_slaveName = self.slaveNames[i]
+            s_vPSlave = int(self.vPSlave[i])
+            s_sensor = defSensors[i]
+            s_slave = slave.Slave(self,s_slaveName,s_vPSlave,s_sensor)
             self.slaves.append(s_slave)
         
         allSlaves_layout = QVBoxLayout()
@@ -426,7 +464,7 @@ class olfactometer(QGroupBox):
         self.record = False
 
         self.lastExpNum = self.lastExpNum + 1
-        newFileName = utils.makeNewFileName(fileLbl, self.lastExpNum)
+        newFileName = utils.makeNewFileName(olfFileLbl, self.lastExpNum)
         
         self.enterFileName.setText(newFileName)
         self.recordButton.setText("Create File && Start Recording")
