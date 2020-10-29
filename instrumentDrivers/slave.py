@@ -13,16 +13,18 @@ class Slave(QGroupBox):
         self.numVials = numVials
         self.sensorTypes = sensorTypes
 
+        # error if len(sensorTypes) is less than numVials
+
         layout = QVBoxLayout()
         self.vials = []
         for x in range(numVials):
-            vialNum = x+1
+            v_vialNum = x+1
             try:
-                sensorType = sensorTypes[vialNum]
+                v_sensorType = sensorTypes[v_vialNum]
             except IndexError:
-                sensorType = sensorTypes[0]
+                v_sensorType = sensorTypes[0]
                 print("no sensor type listed for slave " + self.slaveName + " vial " + str(vialNum) + ": using default sensor type")
-            v_vial = vial.Vial(parent,slaveName,vialNum,sensorType)
+            v_vial = vial.Vial(parent,slaveName,v_vialNum,v_sensorType)
             self.vials.append(v_vial)
             layout.addWidget(v_vial)
         

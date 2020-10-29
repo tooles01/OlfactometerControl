@@ -6,6 +6,7 @@ const int maxValveOpenTime = 5000;	// max time for isolation valve to be open (m
 float defKp = 0.050;
 float defKi = 0.0001;
 float defKd = 0.000;
+int defSp = 100;
 
 int sensPins[2] = {A0, A1};
 int ctrlPins[2] = {4, 5};
@@ -23,7 +24,7 @@ typedef struct {
 
   // PID variables
   bool PIDon = false;
-  int setpoint = 100;
+  int setpoint = defSp;
   float Kp = defKp;
   float Ki = defKi;
   float Kd = defKd;

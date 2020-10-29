@@ -2,7 +2,7 @@
 # utils for main GUI
 
 import os, logging, glob
-#import pandas
+import pandas
 from datetime import datetime
 import config
 
@@ -13,17 +13,17 @@ consoleHandlerLogLevel = logging.INFO
 
 
 def findLogFolder():
-    # find Dropbox
-    x = os.path.expanduser('~\\Dropbox')
-    oeg = glob.glob(x + '/**/*OlfactometerEngineeringGroup',recursive=True)
-    if not oeg:
-        x = os.path.expanduser('~\\Dropbox (NYU Langone Health)')
-        oeg = glob.glob(x + '/**/*OlfactometerEngineeringGroup',recursive=True)
-    o = oeg[0]
+    # find Dropbox\OlfactometerEngineeringGroup
+    dropboxPath = os.path.expanduser('~\\Dropbox')
+    oeg_list = glob.glob(dropboxPath + '/**/*OlfactometerEngineeringGroup',recursive=True)
+    if not oeg_list:
+        dropboxPath = os.path.expanduser('~\\Dropbox (NYU Langone Health)')
+        oeg_list = glob.glob(dropboxPath + '/**/*OlfactometerEngineeringGroup',recursive=True)
+    oeg = oeg_list[0]
 
-    # find logfiles folder
-    f = glob.glob(o + '/**/*logfiles',recursive=True)
-    logFileDirectory = f[0] # assume there is only 1 logfiles folder there
+    # in OlfEngGroup: find logfiles folder
+    logfiles_list = glob.glob(oeg + '/**/*logfiles',recursive=True)
+    logFileDirectory = logfiles_list[0]     # assuming there is only 1 logfiles folder there
 
     return logFileDirectory
 
@@ -66,42 +66,32 @@ def createLogger(name):
     logger.debug('Created logger (%s)', name)
     return logger
 
-
-
-def findConfigFolder():
-    # find Dropbox
-    x = os.path.expanduser('~\\Dropbox')
-    oeg = glob.glob(x + '/**/*OlfactometerEngineeringGroup',recursive=True)
-    if not oeg:
-        x = os.path.expanduser('~\\Dropbox (NYU Langone Health)')
-        oeg = glob.glob(x + '/**/*OlfactometerEngineeringGroup',recursive=True)
-    o = oeg[0]
+def findOlfaConfigFolder():
+    # find Dropbox\OlfactometerEngineeringGroup
+    dropboxPath = os.path.expanduser('~\\Dropbox')
+    oeg_list = glob.glob(dropboxPath + '/**/*OlfactometerEngineeringGroup',recursive=True)
+    if not oeg_list:
+        dropboxPath = os.path.expanduser('~\\Dropbox (NYU Langone Health)')
+        oeg_list = glob.glob(dropboxPath + '/**/*OlfactometerEngineeringGroup',recursive=True)
+    oeg = oeg_list[0]
     
-    # find OlfactometerControl folder
-    f = glob.glob(o + '/**/*OlfactometerControl',recursive=True)
-    configFileDirectory = f[0]
+    # in OlfEngGroup: find OlfactometerControl folder
+    olfControl_list = glob.glob(oeg + '/**/*OlfactometerControl',recursive=True)
+    olfaConfigDirectory = olfControl_list[0]
+    olfactometerFolder = olfaConfigDirectory + '\olfactometer'
 
-    return configFileDirectory
-
-
-
-
-def getInCorrectDirectory():
-    # we need this for the arduino config files
-    path00 = '~\\Dropbox'
-    path01 = '\\OlfactometerEngineeringGroup\\Control\\software\\github repo'
-    PATH = path00 + path01
-    x = os.path.expanduser(PATH)
-    os.chdir(x)
-
-def makeNewFileName(fileType, lastExpNum):
-    newExpNum = lastExpNum + 1
-    newExpNum = str(newExpNum).zfill(2)
-    newFileName = currentDate + '_' + fileType + '_' + str(newExpNum)
-    return newFileName
-
+    return olfactometerFolder
 
 def getArduinoConfigFile(fileName):
+    '''
+    open file
+    -> line by line: if it doesn't start with '//' and has an '='
+        -> key = last word before '='
+        -> val = everything after '=' and before ';'
+            -> remove spaces to the left
+            -> if it's a list: remove '{}', convert to list by splitting at the commas
+        -> add key and val to newDict
+    '''
     newDict = {}
     try:
         with open(fileName,'r') as f:
@@ -120,9 +110,9 @@ def getArduinoConfigFile(fileName):
                     val = val.replace('\'','')
                     val = val.replace('\"','')
                     if '{' in val:  # if it's a list, convert it to one
-                        inString = val[1:len(val)-1]    # remove {}
-                        newList = inString.split(',')   # split at commas
-                        val = [p.strip() for p in newList]  # remove shitespace
+                        val_0 = val[1:len(val)-1]           # remove {}
+                        newList = val_0.split(',')          # convert to list (split at commas)
+                        val = [p.strip() for p in newList]  # remove spaces
                     newDict[key] = val
 
     except OSError or FileNotFoundError as err:
@@ -130,9 +120,15 @@ def getArduinoConfigFile(fileName):
     
     return newDict
 
-def convertToSCCM(ardVal, sensor):
 
-    dictionary = config.ardToSCCM.get(sensor)
+def makeNewFileName(fileType, lastExpNum):
+    newExpNum = lastExpNum + 1
+    newExpNum = str(newExpNum).zfill(2)
+    newFileName = currentDate + '_' + fileType + '_' + str(newExpNum)
+    return newFileName
+
+
+def convertToSCCM(ardVal, dictionary):
     if ardVal in dictionary:    val_SCCM = dictionary.get(ardVal)
     else:
         minVal = min(dictionary)
@@ -159,9 +155,7 @@ def convertToSCCM(ardVal, sensor):
 
     return val_SCCM
 
-def convertToInt(SCCMval, sensor):
-
-    dictionary = config.sccmToArd.get(sensor)
+def convertToInt(SCCMval, dictionary):
     if SCCMval in dictionary:   ardVal = dictionary.get(SCCMval)
     else:
         minVal = min(dictionary)
@@ -184,32 +178,11 @@ def convertToInt(SCCMval, sensor):
             x1 = SCCMval - val1
             addNum = x1*slope
             ardVal = flow1 + addNum
-            ardVal = round(ardVal)
-
+    
+    ardVal = round(ardVal)
     return ardVal
 
-'''
-def getCalibrationDict(fileName,sheet,rowsb4Header,columns):
-    sccm2Ard = {}
-    ard2Sccm = {}
-    try:
-        f = open(fileName,'rb')
-        xls = pandas.read_excel(fileName,
-                            sheet_name=sheet,
-                            header=rowsb4Header-1,
-                            usecols = columns)
-        numVals = int(xls.size/2)
-        for n in range(numVals):
-            flowVal = xls.iloc[n,0]
-            ardVal = xls.iloc[n,1]
-            sccm2Ard[flowVal] = ardVal
-            ard2Sccm[ardVal] = flowVal
-    
-    except OSError as err:
-        print("cant find the file :/", err)
-    
-    return sccm2Ard, ard2Sccm
-'''
+
 def getTimeNow():
     timeNow = datetime.time(datetime.now())         # type: 'datetime.time'
     timeNow_f = timeNow.strftime('%H:%M:%S.%f')     # type: 'str'
@@ -232,4 +205,3 @@ def convToList(numVals, listToConv):
         result[x] = result[x].replace('\'','')
     return result
 '''
-

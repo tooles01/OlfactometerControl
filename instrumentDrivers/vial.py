@@ -1,51 +1,38 @@
 # ST 2020
 # vial.py
 
-import time, collections, sip, os
-from PyQt5.QtWidgets import (QGroupBox, QComboBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QCheckBox,
-                            QFormLayout, QTextEdit, QVBoxLayout, QGridLayout)
-from datetime import datetime
+import sip, os
+from PyQt5.QtWidgets import (QGroupBox, QWidget, QComboBox, QHBoxLayout, QLabel, QLineEdit,
+                            QPushButton, QCheckBox, QFormLayout, QTextEdit, QVBoxLayout, QGridLayout)
 import utils, config
 
-vinQ = 10
-lineEditWidth = 45 
-defSp = str(config.defSpval)
-defVl = str(config.defVlval)
 defMode = 'auto'
-keysToGet = ['defKp','defKi','defKd']
+defVl = str(config.defVlval)
+lineEditWidth = 45
+
 
 class Vial(QGroupBox):
-    #keysToGet = ['defKp','defKi','defKd']       # accessible as a property of the class and as a property of objects
 
     def __init__(self, parent, slave, vialNum, sensorType):
         super().__init__()
         self.parent = parent
-        self.slave = slave          # instance attr - only accessible from the scope of an object
+        self.slave = slave
         self.vialNum = vialNum
-        self.sensorType = sensorType
+        self.sensType = sensorType      ## ** sensor type doesn't matter - just the dictionary does
         self.mode = defMode
+
+        # get the dictionary u want
+        self.sensDict = self.parent.cal_sheets[0]        
 
         className = type(self).__name__
         loggerName = className + ' (' + self.parent.name + ' ' + self.slave + str(self.vialNum) + ')'
         self.logger = utils.createLogger(loggerName)
 
-        # get default shit from config_slave file
-        configDir = utils.findConfigFolder()
-        olfactometerFolder = configDir + '\\olfactometer'
-        os.chdir(olfactometerFolder)
-        slaveVars = utils.getArduinoConfigFile('config_slave.h')
-        for key in keysToGet:
-            keyStr = 'self.' + key
-            if key in slaveVars.keys():
-                exec(keyStr + '=slaveVars.get(key)')
-            else:
-                exec(keyStr + '="0.000"')
+        self.getDefVals()
 
-        title = "Vial " + slave + str(vialNum) + ": " + self.sensorType
-        self.setTitle(title)
-        #self.arduino_time = collections.deque(vinQ*[0],vinQ)
-        #self.arduino_data = collections.deque(vinQ*[0],vinQ)
-        
+        title = "Vial " + slave + str(vialNum) + ": " + self.sensType
+        self.setTitle(title)        
+
         if self.mode == 'auto':
             self.mainLayout = QGridLayout()
             self.setLayout(self.mainLayout)
@@ -75,7 +62,14 @@ class Vial(QGroupBox):
             self.mainLayout.addWidget(self.runSettingsBox)
             self.mainLayout.addWidget(self.dataReceiveBox)
             #self.resize(self.sizeHint())
-
+    
+    
+    def getDefVals(self):
+        slaveVars = self.parent.ardConfig_s
+        keysToGet = self.parent.keysToGet
+        for key in keysToGet:
+            keyStr = 'self.' + key
+            exec(keyStr + '=slaveVars.get(key)')
     
     def createVialSettingsBox(self):
         self.vialSettingsBox = QGroupBox("vial settings")
@@ -83,22 +77,35 @@ class Vial(QGroupBox):
         recLabel = QLabel(text="Record to file:")
         self.recBox = QCheckBox(checkable=True,checked=True)
 
-        sensLabel = QLabel("Sensor type:")
+        sensTypeLbl = QLabel("Sensor Type:")
         self.sensTypeBox = QComboBox()
         self.sensTypeBox.addItems(config.sensorTypes)
-        self.sensTypeBox.setCurrentText(self.sensorType)
-        self.sensTypeBox.currentIndexChanged.connect(self.updateSensorType)
+        self.sensTypeBox.setCurrentText(self.sensType)
+        self.sensTypeBox.setEnabled(False)
+        self.sensTypeBtn = QPushButton(text="Edit",checkable=True)
+        self.sensTypeBtn.clicked.connect(self.clicked_sensTypeEdit)
+
+        sensDictLbl = QLabel("Sensor Calibration Table:")
+        self.sensDictBox = QComboBox()
+        self.sensDictBox.addItems(self.parent.cal_sheets)
+        self.sensDictBox.setCurrentText(self.sensDict)
+        self.sensDictBox.setEnabled(False)
+        self.sensDictBtn = QPushButton(text="Edit",checkable=True)
+        self.sensDictBtn.clicked.connect(self.clicked_sensDictEdit)
 
         layout = QFormLayout()
         layout.addRow(recLabel,self.recBox)
-        layout.addRow(sensLabel,self.sensTypeBox)
+        layout.addRow(sensTypeLbl)
+        layout.addRow(self.sensTypeBox,self.sensTypeBtn)
+        layout.addRow(sensDictLbl)
+        layout.addRow(self.sensDictBox,self.sensDictBtn)
         self.vialSettingsBox.setLayout(layout)
             
     def createRunSettingsBox(self):
         self.runSettingsBox = QGroupBox("run settings")
 
         SpLabel = QLabel("Setpoint (SCCM):")
-        SpEnter = QLineEdit(text=defSp, maximumWidth=lineEditWidth, returnPressed=lambda: self.sendP('Sp',SpEnter.text()))
+        SpEnter = QLineEdit(text=self.defSp, maximumWidth=lineEditWidth, returnPressed=lambda: self.sendP('Sp',SpEnter.text()))
         SpSend = QPushButton(text="Update", clicked=lambda: self.sendP('Sp',SpEnter.text()))
         spLayout = QHBoxLayout()
         spLayout.addWidget(SpLabel)
@@ -108,7 +115,6 @@ class Vial(QGroupBox):
         VlLabel = QLabel("Open @ setpoint for x secs:")
         VlEnter = QLineEdit(text=defVl, maximumWidth=lineEditWidth, returnPressed=lambda: self.sendP('OV',VlEnter.text()))
         VlButton = QPushButton(text="Go",clicked=lambda: self.sendP('OV',VlEnter.text()))
-        #VlButton = QPushButton(text="Go",toggled=lambda: self.toggled_valveOpen)#=lambda: self.sendP('OV',VlEnter.text()))
         vlLayout = QHBoxLayout()
         vlLayout.addWidget(VlLabel)
         vlLayout.addWidget(VlEnter)
@@ -168,7 +174,6 @@ class Vial(QGroupBox):
         layout.addWidget(self.VlToggle)
         self.debugBox.setLayout(layout)
     
-    
     def createDataReceiveBoxes(self):
         self.dataReceiveBox = QGroupBox("data received")
 
@@ -179,6 +184,7 @@ class Vial(QGroupBox):
         receiveBoxLayout.addWidget(receiveBoxLbl)
         receiveBoxLayout.addWidget(self.receiveBox)
 
+        '''
         self.flowBox = QTextEdit(readOnly=True)
         flowBoxLbl = QLabel(text="Flow (SCCM)")
         flowBoxLayout = QVBoxLayout()
@@ -190,6 +196,7 @@ class Vial(QGroupBox):
         ctrlBoxLayout = QVBoxLayout()
         ctrlBoxLayout.addWidget(ctrlvalLbl)
         ctrlBoxLayout.addWidget(self.ctrlvalBox)
+        '''
 
         layout = QHBoxLayout()
         layout.addLayout(receiveBoxLayout)
@@ -197,7 +204,6 @@ class Vial(QGroupBox):
         #layout.addLayout(ctrlBoxLayout)
         self.dataReceiveBox.setLayout(layout)
     
-
 
     def changeMode(self, newMode):
         if self.mode == newMode:
@@ -237,7 +243,8 @@ class Vial(QGroupBox):
     def sendP(self, parameter, val1="", val2="", val3=""):
 
         if parameter == 'Sp':
-            calculatedSp = utils.convertToInt(int(val1),self.sensorType)
+            s_dict = self.parent.sccm2Ard_dicts.get(self.sensDict)
+            calculatedSp = utils.convertToInt(int(val1),s_dict)
             value = str(calculatedSp)
         elif parameter == 'Kx':
             if val1:    str_Kp = "_P" + val1
@@ -279,29 +286,41 @@ class Vial(QGroupBox):
             self.sendP('CV')
             self.VlToggle.setText('Open Iso Valve')
 
-    def updateSensorType(self):
-        self.sensorType = self.sensTypeBox.currentText()
 
-        title = "Vial " + str(self.vialNum) + ": " + self.sensorType
-        self.setTitle(title)
-        self.logger.info('sensor changed to %s', self.sensorType)
-            
+    
+    def clicked_sensTypeEdit(self, checked):
+        if checked:
+            self.sensTypeBtn.setText("Done")
+            self.sensTypeBox.setEnabled(True)
+        else:
+            self.sensTypeBtn.setText("Edit")
+            self.sensTypeBox.setEnabled(False)
+            newSensType = self.sensTypeBox.currentText()
+            if not self.sensType == newSensType:
+                self.sensType = newSensType
+                self.logger.info('sensor type changed to: %s', self.sensType)
+                title = "Vial " + str(self.vialNum) + ": " + self.sensType
+                self.setTitle(title)
+
+    def clicked_sensDictEdit(self, checked):
+        if checked:
+            self.sensDictBtn.setText("Done")
+            self.sensDictBox.setEnabled(True)
+        else:
+            self.sensDictBtn.setText("Edit")
+            self.sensDictBox.setEnabled(False)
+            newSensDict = self.sensDictBox.currentText()
+            if not self.sensDict == newSensDict:
+                self.sensDict = newSensDict
+                self.logger.info('sensor calibration table changed to: %s', self.sensDict)        
+    
     def appendNew(self, value):
         flowValue = value[0:4]
         ctrlValue = value[5:8]        
 
         flowVal = int(flowValue)
-        val_SCCM = utils.convertToSCCM(flowVal, self.sensorType)
+        s_dict = self.parent.ard2Sccm_dicts.get(self.sensDict)
+        val_SCCM = utils.convertToSCCM(flowVal,s_dict)
         
         dataStr = flowValue + '\t' + str(val_SCCM) + '\t' + ctrlValue
         self.receiveBox.append(dataStr)
-        
-        #self.receiveBox.append(flowValue)
-        #self.flowBox.append(str(val_SCCM))
-        #self.ctrlvalBox.append(ctrlValue)
-
-
-        #self.arduino_time.appendleft(timeNow)
-        #self.arduino_data.appendleft(flowValue)
-        #self.arduino_time.pop()
-        #self.arduino_data.pop()
