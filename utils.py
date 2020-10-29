@@ -1,7 +1,7 @@
 # ST 2020
 # utils for main GUI
 
-import os, logging, glob
+import os, logging, glob, math
 import pandas
 from datetime import datetime
 import config
@@ -163,12 +163,18 @@ def convertToInt(SCCMval, dictionary):
         if SCCMval < minVal:    ardVal = dictionary.get(minVal)
         elif SCCMval > maxVal:  ardVal = dictionary.get(maxVal)
         else:
-            val1 = SCCMval-1
+            if SCCMval.is_integer() == False:
+                val1 = math.floor(SCCMval)
+            else:
+                val1 = SCCMval-1
             flow1 = dictionary.get(val1)
             while flow1 is None:
                 val1 = val1-1
                 flow1 = dictionary.get(val1)
-            val2 = SCCMval+1
+            if SCCMval.is_integer() == False:
+                val2 = math.floor(SCCMval)
+            else:
+                val2 = SCCMval+1
             flow2 = dictionary.get(val2)
             while flow2 is None:
                 val2 = val2+1
