@@ -31,6 +31,12 @@ setpointVals = [10,20,30,40,50]
 textEditWidth = 135
 col2Width = 250
 
+# for getting calibration tables 
+filename = 'calibration_values.xlsx'
+rowsb4header = 2
+sccmRow = 0
+ardRow = 2
+
 class worker(QObject):
     finished = pyqtSignal()
     sendNewParam = pyqtSignal(str,int,str,str)
@@ -142,12 +148,7 @@ class olfactometer(QGroupBox):
             else:
                 exec(keyStr + '="0.000"')
         
-        # CALIBRATION TABLES
-        filename = 'calibration_values.xlsx'
-        rowsb4header = 2
-        sccmRow = 0
-        ardRow = 2
-        
+        # CALIBRATION TABLES        
         self.sccm2Ard_dicts = {}
         self.ard2Sccm_dicts = {}
         x = pandas.ExcelFile(filename)

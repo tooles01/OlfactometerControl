@@ -183,6 +183,7 @@ class channelGroupBoxObject(QGroupBox):
             self.instrument_widget = QGroupBox("empty widget for " + self.instrument)
     
     
+    
     # ACTUAL FUNCTIONS THE THING NEEDS
     def nameEditToggled(self):
         if self.nameEditBtn.isChecked():

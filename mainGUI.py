@@ -10,8 +10,7 @@ users = config.users
 defFileType = config.defFileType
 delimChar = config.delimChar
 currentDate = utils.currentDate
-
-fileLbl = 'exp01'
+fileLbl = config.fileLbl
 
 
 class mainGUI(QWidget):
