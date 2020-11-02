@@ -43,16 +43,16 @@ class worker(QObject):
     
     
     @pyqtSlot()
-    def exp01(self):
+    def exp01(self, dictToUse):
         numRuns = 10
         vial = 'A1'
         dur_ON = 3
         dur_OFF = 3
         for i in range(numRuns):
-            n = random.randint(1,100)
-            self.sendNewParam.emit('A',1,'Sp',str(n))
-            # wait the amount of time of the master timeout
-            time.sleep(0.05)
+            sccmVal = random.randint(1,100)
+            ard_int = utils.convertToInt(float(sccmVal),dictToUse)
+            self.sendNewParam.emit('A',1,'Sp',str(ard_int))
+            time.sleep(1)            # wait the amount of time of the master timeout
             self.sendNewParam.emit('A',1,'OV',str(dur_ON))
             time.sleep(dur_ON)
             time.sleep(dur_OFF)
@@ -107,7 +107,7 @@ class olfactometer(QGroupBox):
 
         self.getSlaveInfo()
         #self.getCalibrationTables()
-        self.setUpThreads()
+        #self.setUpThreads()
         
         # COLUMN 1
         self.createConnectBox()
@@ -290,12 +290,14 @@ class olfactometer(QGroupBox):
 
 
     # OLFACTOMETER-SPECIFIC FUNCTIONS
+    '''
     def setUpThreads(self):
         self.obj = worker()
         self.thread1 = QThread()
         self.obj.moveToThread(self.thread1)
         self.obj.sendNewParam.connect(self.sendParameter)
         #self.obj.finished.connect(self.threadIsFinished)
+    '''
     
     def createMasterBox(self):
         self.masterBox = QGroupBox("Master Settings")
@@ -539,9 +541,17 @@ class olfactometer(QGroupBox):
         if checked:
             self.programStartButton.setText('Stop')
             program2run = self.programSelectCb.currentText()
-            self.logger.info('Starting program: %s',program2run)
+            
+            self.obj = worker()
+            self.thread1 = QThread()
+            self.obj.moveToThread(self.thread1)
+            self.obj.sendNewParam.connect(self.sendParameter)
+
             if program2run == programTypes[0]:  # exp01
-                self.slotToConnectTo = self.obj.exp01
+                dictionary = self.slaves[0].vials[0].sensDict
+                s_dict = self.sccm2Ard_dicts.get(dictionary)
+                self.slotToConnectTo = self.obj.exp01(s_dict)
+                
             if program2run == programTypes[1]:  # A1 testing
                 self.slotToConnectTo = self.obj.singleLineSetpointChange
             if program2run == programTypes[2]:
@@ -550,6 +560,9 @@ class olfactometer(QGroupBox):
             self.thread1.started.connect(self.slotToConnectTo)  # connect thread started to worker slot
             self.obj.finished.connect(self.threadIsFinished)
             self.thread1.start()
+
+            self.logger.info('Starting program: %s',program2run)
+            
         else:
             self.programStartButton.setText('Start')
             if self.thread1.isRunning():
