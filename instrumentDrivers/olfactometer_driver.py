@@ -43,14 +43,15 @@ class worker(QObject):
     
     
     @pyqtSlot()
-    def exp01(self, dictToUse):
+    def exp01(self)#, dictToUse):
         numRuns = 10
         vial = 'A1'
         dur_ON = 3
         dur_OFF = 3
         for i in range(numRuns):
-            sccmVal = random.randint(1,100)
-            ard_int = utils.convertToInt(float(sccmVal),dictToUse)
+            #sccmVal = random.randint(1,100)
+            #ard_int = utils.convertToInt(float(sccmVal),dictToUse)
+            ard_int = 768
             self.sendNewParam.emit('A',1,'Sp',str(ard_int))
             time.sleep(1)            # wait the amount of time of the master timeout
             self.sendNewParam.emit('A',1,'OV',str(dur_ON))
@@ -548,9 +549,9 @@ class olfactometer(QGroupBox):
             self.obj.sendNewParam.connect(self.sendParameter)
 
             if program2run == programTypes[0]:  # exp01
-                dictionary = self.slaves[0].vials[0].sensDict
-                s_dict = self.sccm2Ard_dicts.get(dictionary)
-                self.slotToConnectTo = self.obj.exp01(s_dict)
+                #dictionary = self.slaves[0].vials[0].sensDict
+                #s_dict = self.sccm2Ard_dicts.get(dictionary)
+                self.slotToConnectTo = self.obj.exp01
                 
             if program2run == programTypes[1]:  # A1 testing
                 self.slotToConnectTo = self.obj.singleLineSetpointChange
