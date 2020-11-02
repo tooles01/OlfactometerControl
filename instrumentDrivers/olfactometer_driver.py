@@ -46,12 +46,15 @@ class worker(QObject):
     def exp01(self):
         numRuns = 10
         vial = 'A1'
-        dur_ON = 5
-        dur_OFF = 5
+        dur_ON = 3
+        dur_OFF = 3
         for i in range(numRuns):
             n = random.randint(1,100)
             self.sendNewParam.emit('A',1,'Sp',str(n))
+            # wait the amount of time of the master timeout
+            time.sleep(0.05)
             self.sendNewParam.emit('A',1,'OV',str(dur_ON))
+            time.sleep(dur_ON)
             time.sleep(dur_OFF)
         self.finished.emit()
 
@@ -292,7 +295,7 @@ class olfactometer(QGroupBox):
         self.thread1 = QThread()
         self.obj.moveToThread(self.thread1)
         self.obj.sendNewParam.connect(self.sendParameter)
-        self.obj.finished.connect(self.threadIsFinished)
+        #self.obj.finished.connect(self.threadIsFinished)
     
     def createMasterBox(self):
         self.masterBox = QGroupBox("Master Settings")
@@ -545,6 +548,7 @@ class olfactometer(QGroupBox):
                 self.slotToConnectTo = self.obj.setpointFunction
             
             self.thread1.started.connect(self.slotToConnectTo)  # connect thread started to worker slot
+            self.obj.finished.connect(self.threadIsFinished)
             self.thread1.start()
         else:
             self.programStartButton.setText('Start')
@@ -571,10 +575,10 @@ class olfactometer(QGroupBox):
         #widget_height = self.slaves[0].height() + self.slaves[1].height()
         
     def threadIsFinished(self):
-        #self.thread1.quit()
+        self.thread1.quit()
         self.programStartButton.toggle()
         #self.logger.info('Finished program, quit thread')
-        #self.thread1.started.disconnect(self.slotToConnectTo)
+        self.thread1.started.disconnect(self.slotToConnectTo)
 
     '''
     def updatePort(self, newPort):
