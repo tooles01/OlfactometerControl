@@ -3,13 +3,13 @@
 
 import csv, os, time#, serial
 from PyQt5 import QtCore, QtSerialPort
-from PyQt5.QtWidgets import (QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QTextEdit, QWidget,
+from PyQt5.QtWidgets import (QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QTextEdit, QWidget, QSpinBox,
                              QLabel, QLineEdit, QPushButton, QScrollArea, QVBoxLayout)
 from PyQt5.QtCore import QThread, QObject, pyqtSignal, pyqtSlot
 from serial.tools import list_ports
 from instrumentDrivers import slave
 import config, utils
-import pandas, numpy
+import pandas, numpy, random
 
 olfFileLbl = config.olfFileLbl
 defFileType = config.defFileType
@@ -40,6 +40,21 @@ ardRow = 2
 class worker(QObject):
     finished = pyqtSignal()
     sendNewParam = pyqtSignal(str,int,str,str)
+    
+    
+    @pyqtSlot()
+    def exp01(self):
+        numRuns = 10
+        vial = 'A1'
+        dur_ON = 5
+        dur_OFF = 5
+        for i in range(numRuns):
+            n = random.randint(1,100)
+            self.sendNewParam.emit('A',1,'Sp',str(n))
+            self.sendNewParam.emit('A',1,'OV',str(dur_ON))
+            time.sleep(dur_OFF)
+        self.finished.emit()
+
     
     @pyqtSlot()
     def setpointFunction(self): # a slot takes no params
@@ -304,18 +319,30 @@ class olfactometer(QGroupBox):
         row1.addWidget(self.modeCb)
         row1.addWidget(self.modeUpdate)
         
+        programLbl = QLabel("Select program:")
         self.programSelectCb = QComboBox()
         self.programSelectCb.addItems(programTypes)
         self.programStartButton = QPushButton(text="Start",checkable=True,toggled=self.programButtonToggled,toolTip="must be in auto mode to start a program")
         self.programStartButton.setEnabled(False)
-        row2 = QHBoxLayout()
-        row2.addWidget(QLabel("Select program:"))
-        row2.addWidget(self.programSelectCb)
-        row2.addWidget(self.programStartButton)
+        
+        self.progSettingsBox = QWidget()
+        self.progSettingsLayout = QFormLayout()
+        self.p_vial = QComboBox()
+        self.p_vial.addItems(['A1','A2'])
+        self.p_durON = QSpinBox()
+        self.p_durOFF = QSpinBox()
+        self.p_numTimes = QSpinBox()
+        self.progSettingsLayout.addRow(QLabel("Vial:"),self.p_vial)
+        self.progSettingsLayout.addRow(QLabel("Dur. open (s)"),self.p_durON)
+        self.progSettingsLayout.addRow(QLabel("Dur.closed (s)"),self.p_durOFF)
+        self.progSettingsLayout.addRow(QLabel("# of opens"),self.p_numTimes)
+        self.progSettingsBox.setLayout(self.progSettingsLayout)
 
-        layout = QVBoxLayout()
-        layout.addLayout(row1)
-        layout.addLayout(row2)
+        layout = QFormLayout()
+        layout.addRow(row1)
+        layout.addRow(programLbl,self.programSelectCb)
+        layout.addRow(self.progSettingsBox)
+        layout.addRow(self.programStartButton)
         self.vialProgrammingBox.setLayout(layout)
     
    
@@ -510,8 +537,8 @@ class olfactometer(QGroupBox):
             self.programStartButton.setText('Stop')
             program2run = self.programSelectCb.currentText()
             self.logger.info('Starting program: %s',program2run)
-            if program2run == programTypes[0]:
-                self.slotToConnectTo = self.obj.A1repeatSetpoint
+            if program2run == programTypes[0]:  # exp01
+                self.slotToConnectTo = self.obj.exp01
             if program2run == programTypes[1]:  # A1 testing
                 self.slotToConnectTo = self.obj.singleLineSetpointChange
             if program2run == programTypes[2]:
