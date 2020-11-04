@@ -1,7 +1,7 @@
 # ST 2020
 # olfactometer_driver.py
 
-import csv, os, time#, serial
+import csv, os, time, pandas, numpy, random
 from PyQt5 import QtCore, QtSerialPort
 from PyQt5.QtWidgets import (QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QTextEdit, QWidget, QSpinBox,
                              QLabel, QLineEdit, QPushButton, QScrollArea, QVBoxLayout)
@@ -9,10 +9,9 @@ from PyQt5.QtCore import QThread, QObject, pyqtSignal, pyqtSlot
 from serial.tools import list_ports
 from instrumentDrivers import slave
 import config, utils
-import pandas, numpy, random
 
 olfFileLbl = config.olfFileLbl
-defFileType = config.defFileType
+dataFileType = config.dataFileType
 delimChar = config.delimChar
 
 currentDate = utils.currentDate
@@ -26,7 +25,6 @@ testingModes = config.testingModes
 
 keysToGet = config.keysToGet
 
-vials = [1,2]
 setpointVals = [10,20,30,40,50]
 textEditWidth = 135
 col2Width = 250
@@ -37,27 +35,40 @@ rowsb4header = 2
 sccmRow = 0
 ardRow = 2
 
+# for exp01
+defDurOn = 5
+defDurOff = 5
+defNumRuns = 5
+
+defManualCmd = 'A1_OV_5'
+
 class worker(QObject):
     finished = pyqtSignal()
     sendNewParam = pyqtSignal(str,int,str,str)
+    sendSetpoint = pyqtSignal()
+    sendOVnow = pyqtSignal()
+    
+    def __init__(self):
+        super().__init__()
+        self.numRuns = 0
+        self.dur_ON = 0
+        self.dur_OFF = 0
+        self.threadON = False
     
     
     @pyqtSlot()
-    def exp01(self)#, dictToUse):
-        numRuns = 10
-        vial = 'A1'
-        dur_ON = 3
-        dur_OFF = 3
-        for i in range(numRuns):
-            #sccmVal = random.randint(1,100)
-            #ard_int = utils.convertToInt(float(sccmVal),dictToUse)
-            ard_int = 768
-            self.sendNewParam.emit('A',1,'Sp',str(ard_int))
-            time.sleep(1)            # wait the amount of time of the master timeout
-            self.sendNewParam.emit('A',1,'OV',str(dur_ON))
-            time.sleep(dur_ON)
-            time.sleep(dur_OFF)
+    def exp01(self):
+        for i in range(self.numRuns):
+            if self.threadON == True:
+                self.sendSetpoint.emit()
+                time.sleep(1)
+                self.sendOVnow.emit()
+                time.sleep(self.dur_ON)
+                time.sleep(self.dur_OFF)
+            else:
+                break
         self.finished.emit()
+        self.threadON = False
 
     
     @pyqtSlot()
@@ -105,10 +116,10 @@ class olfactometer(QGroupBox):
         self.className = type(self).__name__
         loggerName = self.className + ' (' + self.name + ')'
         self.logger = utils.createLogger(loggerName)
+        self.logger.debug('Creating %s', loggerName)
 
         self.getSlaveInfo()
-        #self.getCalibrationTables()
-        #self.setUpThreads()
+        self.setUpThreads()
         
         # COLUMN 1
         self.createConnectBox()
@@ -117,9 +128,11 @@ class olfactometer(QGroupBox):
         # COLUMN 2
         self.column2Layout = QVBoxLayout()
         self.createMasterBox()
+        self.createFlowSettingsBox()
         self.createVialProgrammingBox()
         self.createDataFileBox()
         self.column2Layout.addWidget(self.masterBox)
+        self.column2Layout.addWidget(self.flowSettingsBox)
         self.column2Layout.addWidget(self.vialProgrammingBox)
         self.column2Layout.addWidget(self.dataFileBox)
         #self.masterBox.setFixedWidth(col2Width)
@@ -134,7 +147,7 @@ class olfactometer(QGroupBox):
         self.mainLayout.addLayout(self.column2Layout)
         self.mainLayout.addWidget(self.slaveGroupBox)
         self.setLayout(self.mainLayout)
-        self.setTitle(loggerName)
+        self.setTitle(self.name)
 
         self.connectButton.setChecked(False)
         self.refreshButton.setEnabled(True)
@@ -188,6 +201,7 @@ class olfactometer(QGroupBox):
             self.sccm2Ard_dicts[s] = sccm2Ard
             self.ard2Sccm_dicts[s] = ard2Sccm
         os.chdir(curDir)
+    
     
     # CONNECT TO DEVICE
     def createConnectBox(self):
@@ -291,14 +305,15 @@ class olfactometer(QGroupBox):
 
 
     # OLFACTOMETER-SPECIFIC FUNCTIONS
-    '''
     def setUpThreads(self):
         self.obj = worker()
         self.thread1 = QThread()
         self.obj.moveToThread(self.thread1)
         self.obj.sendNewParam.connect(self.sendParameter)
+        self.obj.sendSetpoint.connect(self.sendRandomSetpoint)
+        self.obj.sendOVnow.connect(self.sendOpenValve)
+        #self.obj.sendOVnow.connect(self.exp01)
         #self.obj.finished.connect(self.threadIsFinished)
-    '''
     
     def createMasterBox(self):
         self.masterBox = QGroupBox("Master Settings")
@@ -306,55 +321,65 @@ class olfactometer(QGroupBox):
         timeBtReqLbl = QLabel(text="Time b/t requests for slave data (ms):")
         timeBtReqBox = QLineEdit(text=self.defTimebt,returnPressed=lambda:self.sendParameter('M','M','timebt',timeBtReqBox.text()))
         timeBtButton = QPushButton(text="Update",clicked=lambda: self.sendParameter('M','M','timebt',timeBtReqBox.text()))
+        
+        manualCmdLbl = QLabel(text="Send manual command:")
+        self.manualCmdBox = QLineEdit(text=defManualCmd,returnPressed=self.sendManualParameter)
+        manualCmdBtn = QPushButton(text="Send",clicked=self.sendManualParameter)
 
-        #timeBtReqBox.setFixedWidth(60)
-        timeupdateLayout = QFormLayout()
-        timeupdateLayout.addRow(timeBtReqLbl)
-        timeupdateLayout.addRow(timeBtReqBox,timeBtButton)
-        self.masterBox.setLayout(timeupdateLayout)        
+        layout = QFormLayout()
+        layout.addRow(timeBtReqLbl)
+        layout.addRow(timeBtReqBox,timeBtButton)
+        layout.addRow(manualCmdLbl)
+        layout.addRow(self.manualCmdBox,manualCmdBtn)
+        self.masterBox.setLayout(layout)        
+
+    def createFlowSettingsBox(self):
+        self.flowSettingsBox = QGroupBox("Flow Control Mode")
+
+        modeLabel = QLabel("Flow control:")
+        self.modeCb = QComboBox()
+        self.modeCb.addItems(testingModes)
+        self.modeUpdate = QPushButton(text="Update",clicked=self.updateMode)
+
+        layout = QHBoxLayout()
+        layout.addWidget(modeLabel)
+        layout.addWidget(self.modeCb)
+        layout.addWidget(self.modeUpdate)
+
+        self.flowSettingsBox.setLayout(layout)
 
     def createVialProgrammingBox(self):
         self.vialProgrammingBox = QGroupBox("Vial Programming")
 
-        modeLabel = QLabel("Testing mode:")
-        self.modeCb = QComboBox()
-        self.modeCb.addItems(testingModes)
-        self.modeUpdate = QPushButton(text="Update",clicked=self.updateMode)
-        row1 = QHBoxLayout()
-        row1.addWidget(modeLabel)
-        row1.addWidget(self.modeCb)
-        row1.addWidget(self.modeUpdate)
-        
-        programLbl = QLabel("Select program:")
+        programLbl = QLabel("Program:")
         self.programSelectCb = QComboBox()
         self.programSelectCb.addItems(programTypes)
-        self.programStartButton = QPushButton(text="Start",checkable=True,toggled=self.programButtonToggled,toolTip="must be in auto mode to start a program")
+        #self.programSelectCb.currentIndexChanged(self.changeProgramSelected)
+        #self.programSelectCb.currentTextChanged(self.changeProgramSelected)
+        self.programStartButton = QPushButton(text="Start",checkable=True,clicked=self.programStartClicked,toolTip="must be in auto mode to start a program")
         self.programStartButton.setEnabled(False)
         
         self.progSettingsBox = QWidget()
         self.progSettingsLayout = QFormLayout()
-        self.p_vial = QComboBox()
-        self.p_vial.addItems(['A1','A2'])
-        self.p_durON = QSpinBox()
-        self.p_durOFF = QSpinBox()
-        self.p_numTimes = QSpinBox()
-        self.progSettingsLayout.addRow(QLabel("Vial:"),self.p_vial)
-        self.progSettingsLayout.addRow(QLabel("Dur. open (s)"),self.p_durON)
-        self.progSettingsLayout.addRow(QLabel("Dur.closed (s)"),self.p_durOFF)
-        self.progSettingsLayout.addRow(QLabel("# of opens"),self.p_numTimes)
+        self.p_vial_sbox = QComboBox()
+        self.p_vial_sbox.addItems(['A1','A2','B1','B2'])
+        self.p_durON_sbox = QSpinBox(value=defDurOn)
+        self.p_durOFF_sbox = QSpinBox(value=defDurOff)
+        self.p_numTimes_sbox = QSpinBox(value=defNumRuns)
+        self.progSettingsLayout.addRow(QLabel("Vial:"),self.p_vial_sbox)
+        self.progSettingsLayout.addRow(QLabel("Dur. open (s)"),self.p_durON_sbox)
+        self.progSettingsLayout.addRow(QLabel("Dur.closed (s)"),self.p_durOFF_sbox)
+        self.progSettingsLayout.addRow(QLabel("# of opens"),self.p_numTimes_sbox)
         self.progSettingsBox.setLayout(self.progSettingsLayout)
 
         layout = QFormLayout()
-        layout.addRow(row1)
         layout.addRow(programLbl,self.programSelectCb)
         layout.addRow(self.progSettingsBox)
         layout.addRow(self.programStartButton)
         self.vialProgrammingBox.setLayout(layout)
     
-   
-    # READ FROM DEVICE
     def createDataFileBox(self):
-        self.dataFileBox = QGroupBox("Olfactometer Data File (" + defFileType + ")")
+        self.dataFileBox = QGroupBox("Olfactometer Data File (" + dataFileType + ")")
         
         files = os.listdir()
         dataFiles = [s for s in files if olfFileLbl in s]
@@ -396,7 +421,6 @@ class olfactometer(QGroupBox):
         layout.addWidget(self.logFileOutputBox)
 
         self.dataFileBox.setLayout(layout)
-        
     
     def createSlaveGroupBox(self):
         self.slaveGroupBox = QGroupBox("Slave Settings")
@@ -424,6 +448,31 @@ class olfactometer(QGroupBox):
         self.slaveBox_layout.addWidget(self.slaveScrollArea)
         self.slaveGroupBox.setLayout(self.slaveBox_layout)
 
+    def sendManualParameter(self):
+        toSend = self.manualCmdBox.text()
+        str_send = toSend
+        bArr_send = str_send.encode()
+
+        try:
+            if self.serial.isOpen():
+                self.serial.write(bArr_send)
+                self.logger.info("sent to %s: %s", self.port, str_send)
+                self.rawWriteDisplay.append(str_send)
+                self.window().receiveDataFromChannels(self.name,'',str_send)
+            else:
+                self.logger.warning('Serial port not open, cannot send parameter: %s', str_send)
+        except AttributeError as err:
+            self.logger.warning('Serial port not open, cannot send parameter: %s', str_send)
+
+
+    '''
+    def changeProgramSelected(self):
+        # maybe to change the datafile name?
+        self.progSelected = self.programSelectCb.currentText()
+        if self.progSelected == programTypes[0]:
+            pass
+            # exp01
+    '''
 
     # ACTUAL FUNCTIONS THE THING NEEDS
     def receive(self):
@@ -470,7 +519,7 @@ class olfactometer(QGroupBox):
     def toggled_record(self, checked):
         if checked:
             self.record = True
-            self.enteredFileName = self.enterFileName.text() + defFileType
+            self.enteredFileName = self.enterFileName.text() + dataFileType
             if not os.path.exists(self.enteredFileName):
                 self.logger.info('Creating new olfa datafile: %s',self.enteredFileName)
                 File = self.enteredFileName, ' '
@@ -505,7 +554,7 @@ class olfactometer(QGroupBox):
         self.recordButton.setText("Create File && Start Recording")
         self.logFileOutputBox.clear()
     
-    def sendParameter(self, slave, vial, parameter, value=""):
+    def sendParameter(self, slave: str, vial, parameter: str, value=""):
         if parameter[0] == 'K' and parameter != 'Kx':
             str_param = 'Kx'
             nextChar = parameter[1].capitalize()
@@ -520,7 +569,6 @@ class olfactometer(QGroupBox):
         try:
             if self.serial.isOpen():
                 self.serial.write(bArr_send)
-                print(utils.getTimeNow() + '\tsent to Arduino')
                 self.logger.info("sent to %s: %s", self.port, str_send)
                 self.rawWriteDisplay.append(str_send)
                 for s in self.slaves:
@@ -538,21 +586,31 @@ class olfactometer(QGroupBox):
         except AttributeError as err:
             self.logger.warning('Serial port not open, cannot send parameter: %s', str_send)
 
-    def programButtonToggled(self, checked):
+    def programStartClicked(self, checked):
         if checked:
             self.programStartButton.setText('Stop')
-            program2run = self.programSelectCb.currentText()
-            
-            self.obj = worker()
-            self.thread1 = QThread()
-            self.obj.moveToThread(self.thread1)
-            self.obj.sendNewParam.connect(self.sendParameter)
+            program2run = self.programSelectCb.currentText()                
 
-            if program2run == programTypes[0]:  # exp01
-                #dictionary = self.slaves[0].vials[0].sensDict
-                #s_dict = self.sccm2Ard_dicts.get(dictionary)
-                self.slotToConnectTo = self.obj.exp01
+            if program2run == programTypes[0]:  # exp01    
+                self.vialToRun = self.p_vial_sbox.currentText()
+                self.dur_ON = self.p_durON_sbox.value()
+                self.dur_OFF = self.p_durOFF_sbox.value()
+                self.numRuns = self.p_numTimes_sbox.value()
                 
+                self.obj.numRuns = self.numRuns
+                self.obj.dur_ON = self.dur_ON
+                self.obj.dur_OFF = self.dur_OFF
+
+                self.slotToConnectTo = self.obj.exp01
+
+                self.p_slave = self.vialToRun[0]
+                self.p_vial = self.vialToRun[1]
+                for i in range(self.numSlaves):
+                    if self.slaves[i].slaveName == self.p_slave: s_index = i
+                v_index = int(self.p_vial)-1
+                sensDictName = self.slaves[s_index].vials[v_index].sensDict
+                self.dictToUse = self.sccm2Ard_dicts.get(sensDictName)
+
             if program2run == programTypes[1]:  # A1 testing
                 self.slotToConnectTo = self.obj.singleLineSetpointChange
             if program2run == programTypes[2]:
@@ -561,15 +619,16 @@ class olfactometer(QGroupBox):
             self.thread1.started.connect(self.slotToConnectTo)  # connect thread started to worker slot
             self.obj.finished.connect(self.threadIsFinished)
             self.thread1.start()
+            self.obj.threadON = True
 
             self.logger.info('Starting program: %s',program2run)
             
         else:
-            self.programStartButton.setText('Start')
-            if self.thread1.isRunning():
-                self.logger.info('Program ended')
-                self.thread1.quit()
-                self.thread1.started.disconnect(self.slotToConnectTo)
+            self.threadIsFinished()
+            #if self.thread1.isRunning():
+            #    self.logger.info('Program ended')
+            #    self.thread1.quit()
+            #    self.thread1.started.disconnect(self.slotToConnectTo)
     
     def updateMode(self):
         self.mode = self.modeCb.currentText()
@@ -588,13 +647,37 @@ class olfactometer(QGroupBox):
         #widget_width = self.slaves[0].width()
         #widget_height = self.slaves[0].height() + self.slaves[1].height()
         
-    def threadIsFinished(self):
-        self.thread1.quit()
-        self.programStartButton.toggle()
-        #self.logger.info('Finished program, quit thread')
-        self.thread1.started.disconnect(self.slotToConnectTo)
 
-    '''
+    def exp01(self):
+        sccmVal = random.randint(1,100)
+        ardVal = utils.convertToInt(float(sccmVal),self.dictToUse)
+
+        self.sendParameter(self.p_slave,self.p_vial,'Sp',str(ardVal))
+        time.sleep(5)
+        self.sendParameter(self.p_slave,self.p_vial,'OV',str(self.dur_ON))
+        #self.logger.debug('%s%s at %s sccm (%ss open, %ss closed)',self.p_slave,self.p_vial,sccmVal,self.dur_ON,self.dur_OFF)
+
+    
+    def sendRandomSetpoint(self):
+        sccmVal = random.randint(1,100)
+        ardVal = utils.convertToInt(float(sccmVal),self.dictToUse)
+        self.sendParameter(self.p_slave,self.p_vial,'Sp',str(ardVal))
+
+    
+    def sendOpenValve(self):
+        dur = self.dur_ON
+        self.sendParameter(self.p_slave,self.p_vial,'OV',str(dur))
+
+    
+    def threadIsFinished(self):
+        self.obj.threadON = False
+        self.thread1.quit()
+        self.programStartButton.setChecked(False)
+        self.programStartButton.setText('Start')
+        self.logger.info('Finished program, quit thread')
+        #self.thread1.started.disconnect(self.slotToConnectTo)
+
+    
     def updatePort(self, newPort):
         self.port = newPort
         self.logger.info('port changed to %s', self.port)
@@ -604,4 +687,4 @@ class olfactometer(QGroupBox):
             self.name = newName
             self.logger.info('name changed to %s', self.name)
             self.setTitle(self.name)
-    '''
+    

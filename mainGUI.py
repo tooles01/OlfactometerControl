@@ -3,40 +3,48 @@
 
 import sip, os, csv
 from PyQt5.QtWidgets import (QComboBox, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QDialog, QTextEdit,
-                             QScrollArea, QVBoxLayout, QWidget, QPushButton, QFormLayout)
+                             QScrollArea, QVBoxLayout, QWidget, QPushButton, QFormLayout, QSpinBox)
 import utils, config, channel_stuff
 
-users = config.users
-defFileType = config.defFileType
-delimChar = config.delimChar
 currentDate = utils.currentDate
-fileLbl = config.fileLbl
+users = config.users
 
+datafileLbl = config.datafileLbl
+dataFileType = config.dataFileType
+delimChar = config.delimChar
+col1width = 300
 
 class mainGUI(QWidget):
 
     def __init__(self, channels):
         super().__init__()
         self.channels = channels
+        self.numChannels = len(self.channels)
         
         className = type(self).__name__
         self.logger = utils.createLogger(className)
         self.logger.info('%s channels:', len(self.channels))
         
         self.createMainSettingsBox()
-        self.createChannelGroupBox()
+        self.createChannelSettingsBox()
         self.createDataFileBox()
-        self.dataFileBox.setFixedWidth(330)
-
+        self.mainSettingsBox.setFixedWidth(col1width)
+        self.channelSettingsBox.setFixedWidth(col1width)
+        self.dataFileBox.setFixedWidth(col1width)
+        
         col1 = QVBoxLayout()
         col1.addWidget(self.mainSettingsBox)
+        col1.addWidget(self.channelSettingsBox)
         col1.addWidget(self.dataFileBox)
+        
+        self.createChannelGroupBox()
         
         self.mainLayout = QHBoxLayout()
         self.mainLayout.addLayout(col1)
         self.mainLayout.addWidget(self.channelGroupBox)
         self.setLayout(self.mainLayout)
         self.setWindowTitle('mainGUI')
+    
     
     # TO CREATE THE GUI
     def createMainSettingsBox(self):
@@ -47,16 +55,55 @@ class mainGUI(QWidget):
         self.userSelectCb.addItems(users)
         self.user = self.userSelectCb.currentText()
         self.userSelectCb.currentIndexChanged.connect(self.updateUser)
-        self.channelChangeBtn = QPushButton(text="Change # of Channels",clicked=self.changeNumChannels)
 
         layout = QFormLayout()
         layout.addRow(userLbl,self.userSelectCb)
-        layout.addRow(self.channelChangeBtn)
         self.mainSettingsBox.setLayout(layout)
+
+    def createChannelSettingsBox(self):
+        self.channelSettingsBox = QGroupBox("Channel Settings")
+
+        # number of channels
+        box1 = QGroupBox()
+        numCLbl = QLabel("Number of channels:")
+        self.numCBox = QSpinBox(value=self.numChannels,valueChanged=self.updateNumChans)
+        layout1 = QHBoxLayout()
+        layout1.addWidget(numCLbl)
+        layout1.addWidget(self.numCBox)
+        box1.setLayout(layout1)
+        
+        # channel info
+        box2 = QGroupBox()
+        recLbl = QLabel(text="Record")
+        instLbl = QLabel(text="Instrument:")
+        chanLbl = QLabel(text="Name:")
+        lblRow = QHBoxLayout()
+        lblRow.addWidget(recLbl)
+        lblRow.addWidget(instLbl)
+        lblRow.addWidget(chanLbl)
+        self.layout2 = QVBoxLayout()
+        self.layout2.addLayout(lblRow)
+        
+        self.rows = []
+        for r in range(self.numChannels):
+            c = self.channels[r]
+            row = channel_stuff.row(c.name,c.instrument)
+            row.setLayout(c.hLayout)
+            self.rows.append(row)
+            self.layout2.addWidget(row)
+        box2.setLayout(self.layout2)
+        
+        self.channelUpdateBtn = QPushButton(text="Update",clicked=self.updateChannels)
+        layout = QVBoxLayout()
+        layout.addWidget(box1)
+        layout.addWidget(box2)
+        layout.addWidget(self.channelUpdateBtn)
+        self.channelSettingsBox.setLayout(layout)
 
     def createChannelGroupBox(self):
         self.channelGroupBox = QGroupBox("Channels")
 
+        self.allChannels_layout = QVBoxLayout()
         self.c_Rows = []
         for i in self.channels:
             c_name = i.name
@@ -67,10 +114,7 @@ class mainGUI(QWidget):
             self.c_Rows.append(channel_groupbox)
             num = self.c_Rows.index(channel_groupbox)
             self.c_Rows[num].setTitle('Channel ' + str(num+1))
-        
-        self.allChannels_layout = QVBoxLayout()
-        for i in self.c_Rows:
-            self.allChannels_layout.addWidget(i)
+            self.allChannels_layout.addWidget(channel_groupbox)
         
         self.allChannelsWid = QWidget()
         self.allChannelsWid.setLayout(self.allChannels_layout)
@@ -82,18 +126,85 @@ class mainGUI(QWidget):
         self.cs_layout.addWidget(self.allChannelsScrollArea)
         self.channelGroupBox.setLayout(self.cs_layout)
     
+    
+    def updateNumChans(self):
+        newNumChans = self.numCBox.value()
+        if not self.numChannels == newNumChans:
+            prevChannels = self.numChannels
+            self.numChannels = newNumChans
+            self.logger.debug('# of channels updated to %s',self.numChannels)
+
+            # make new channels
+            if newNumChans > prevChannels:
+                numNewToMake = newNumChans-prevChannels
+                for i in range(numNewToMake):
+                    r_idx = prevChannels + i
+                    numRows = len(self.rows)
+                    if r_idx < numRows:       # if we've already had a row for this
+                        self.layout2.addWidget(self.rows[r_idx])
+                        self.channels.append(self.rows[r_idx])
+                    else:
+                        c = channel_stuff.channelObj(name='',instrument='')
+                        self.channels.append(c)
+                        row = channel_stuff.row(name='',instrument='')
+                        row.setLayout(c.hLayout)
+                        self.rows.append(row)
+                        self.layout2.addWidget(row)
+            
+            # delete channels
+            if prevChannels > newNumChans:
+                numToDelete = prevChannels-newNumChans
+                for i in range(numToDelete):
+                    r_idx = prevChannels-1
+                    self.layout2.removeWidget(self.rows[r_idx])
+                    self.channels.pop(-1)
+
+    def updateChannels(self):
+        numPrev = len(self.c_Rows)
+        numNew = len(self.channels)
+        self.logger.info('updating display to show %s channels',numNew)
+
+        for idx in range(numPrev):  # for each of the previous channels
+            if idx < numNew:        # if its a value within the newnum (will exist)
+                newChan = self.channels[idx]
+                prevChan = self.c_Rows[idx]
+                if newChan.instrument != prevChan.instrument:   # if instrument is different, make new
+                    newChannel = channel_stuff.channelGroupBoxObject(name=newChan.name,instrument=newChan.instrument)
+                    self.allChannels_layout.removeWidget(self.c_Rows[idx])
+                    self.c_Rows[idx] = newChannel
+                    self.allChannels_layout.insertWidget(idx,self.c_Rows[idx])
+                else:
+                    if newChan.name != prevChan.name:           # if instrument is same but name is different
+                        self.c_Rows[idx].name = newChan.name
+
+        if numPrev > numNew:        # delete extra channels
+            num2Delete = numPrev - numNew
+            for i in range(num2Delete):
+                self.allChannels_layout.removeWidget(self.c_Rows[-1])
+                sip.delete(self.c_Rows[-1])
+                self.c_Rows.pop(-1)
+        
+        if numPrev < numNew:        # add new channels
+            num2Make = numNew - numPrev
+            for i in range(num2Make):
+                newChan = self.channels[i+numPrev]
+                newChannel = channel_stuff.channelGroupBoxObject(name=newChan.name,instrument=newChan.instrument)
+                self.c_Rows.append(newChannel)
+                self.allChannels_layout.addWidget(newChannel)    
+    
+
     def createDataFileBox(self):
         self.dataFileBox = QGroupBox("DataFile")
 
-        self.whoRecordBox = QGroupBox()
-        self.whoRecord_layout = QFormLayout()
-        self.whoRecord_layout.addWidget(QLabel(text="Record from:"))
-        for c in self.c_Rows:
-            self.whoRecord_layout.addRow(c.checkBox,c.checkBoxLbl)
-        self.whoRecordBox.setLayout(self.whoRecord_layout)
+        #self.whoRecordBox = QGroupBox()
+        #self.whoRecord_layout = QFormLayout()
+        #self.whoRecord_layout.addWidget(QLabel(text="Record from:"))
+        #for c in self.c_Rows:
+        #    self.whoRecord_layout.addRow(c.checkBox,c.checkBoxLbl)
+        #self.whoRecordBox.setLayout(self.whoRecord_layout)
 
         files = os.listdir()
-        dataFiles = [x for x in files if fileLbl in x]  # files with fileLbl in them
+        dataFiles = [x for x in files if datafileLbl in x]  # files with fileLbl in them
         if not dataFiles:
             self.lastFileNum = 0
         else:
@@ -116,17 +227,19 @@ class mainGUI(QWidget):
                 self.lastFileNum = int(lastFilePosNum)
         
         fileNameLbl = QLabel(text="File Name:")
-        defFileName = utils.makeNewFileName(fileLbl, self.lastFileNum)
+        defFileName = utils.makeNewFileName(datafileLbl, self.lastFileNum)
         self.enterFileName = QLineEdit(text=defFileName)
+        fileLayout = QHBoxLayout()
+        fileLayout.addWidget(fileNameLbl)
+        fileLayout.addWidget(self.enterFileName)
         self.recordButton = QPushButton(text="Create && Start Recording",checkable=True,clicked=self.clicked_record)
-        hint = self.recordButton.sizeHint()
-        self.recordButton.setFixedSize(hint)
+        #hint = self.recordButton.sizeHint()
+        #self.recordButton.setFixedSize(hint)
         self.endRecordButton = QPushButton(text="End Recording",clicked=self.clicked_endRecord)
         self.dataFileOutputBox = QTextEdit(readOnly=True)
 
         layout = QFormLayout()
-        layout.addRow(self.whoRecordBox)
-        layout.addRow(fileNameLbl,self.enterFileName)
+        layout.addRow(fileLayout)
         layout.addRow(self.recordButton,self.endRecordButton)
         layout.addRow(self.dataFileOutputBox)
         self.dataFileBox.setLayout(layout)
@@ -141,13 +254,14 @@ class mainGUI(QWidget):
             self.user = newUser
             self.logger.info('New user: %s', self.user)
     
+    '''
     def changeNumChannels(self):
         self.logger.debug('changing # of channels')
         
         chSet_dlg = channel_stuff.channelDialog(self.channels)
         if chSet_dlg.exec_() == QDialog.Accepted:
             self.channels = chSet_dlg.channels
-         
+
             numPrev = len(self.c_Rows)
             numNew = len(self.channels)
             for idx in range(numPrev):  # for each of the previous channels
@@ -192,14 +306,14 @@ class mainGUI(QWidget):
             self.whoRecord_layout.addWidget(QLabel(text="Record from:"))
             for i in self.c_Rows:
                 self.whoRecord_layout.addRow(i.checkBox,i.checkBoxLbl)
-
+    '''
     
     
     def clicked_record(self, checked):
         if checked:
             self.recordButton.setText("Pause Recording")
             self.endRecordButton.setEnabled(True)
-            self.enteredFileName = self.enterFileName.text() + defFileType
+            self.enteredFileName = self.enterFileName.text() + dataFileType
             if not os.path.exists(self.enteredFileName):
                 self.logger.info('Creating new datafile: %s',self.enteredFileName)
                 File = self.enteredFileName, ' '
@@ -225,7 +339,7 @@ class mainGUI(QWidget):
             self.recordButton.setChecked(False)
         
         self.lastFileNum = self.lastFileNum + 1
-        newFileName = utils.makeNewFileName(fileLbl,self.lastFileNum)
+        newFileName = utils.makeNewFileName(datafileLbl,self.lastFileNum)
 
         self.enterFileName.setText(newFileName)
         self.recordButton.setText("Create File && Start Recording")

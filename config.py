@@ -2,23 +2,29 @@
 # config.py
 
 from datetime import datetime
+import logging
 
 
 currentDate = str(datetime.date(datetime.now()))
 logFileName = 'logFile.txt'
 
 
+# LOGGING
+fileHandlerLogLevel = logging.INFO
+consoleHandlerLogLevel = logging.DEBUG
+
+
 # mainGUI.py
 ################################
 users = ['Shannon','Ophir','Other']
-fileLbl = 'exp01'
-defFileType = ".csv"
+datafileLbl = 'exp01'
+dataFileType = ".csv"
 delimChar = ','
 
 
 # channel_stuff.py
 ################################
-instTypes = ['olfactometer','oscilloscope','flow sensor','NI-DAQ']
+instTypes = ['olfactometer','flow sensor','NI-DAQ']
 noPortMsg = ' ~ No COM ports detected ~'
 
 
@@ -29,7 +35,8 @@ arduinoMasterConfigFile = 'config_master.h'
 arduinoSlaveConfigFile = 'config_slave.h'
 testingModes = ['auto','manual']
 charsToRead = 16
-programTypes = ['A1 50cc-5s (10x)','A1 testing','A1 & A2 testing ']
+#programTypes = ['A1 50cc-5s (10x)','A1 testing','A1 & A2 testing ']
+programTypes = ['exp01b (random setpoints)','exp02 (overlap)','exp03 (reproduce)']
 defVlval = 5
 sensorTypes = ["Honeywell 3100V", "Honeywell 3300V", "Honeywell 5101V"]
 keysToGet = ['defKp','defKi','defKd','defSp']

@@ -8,8 +8,8 @@ import config
 
 currentDate = config.currentDate
 logFileName = config.logFileName
-fileHandlerLogLevel = logging.INFO
-consoleHandlerLogLevel = logging.INFO
+fileHandlerLogLevel = config.fileHandlerLogLevel
+consoleHandlerLogLevel = config.consoleHandlerLogLevel
 
 
 def findLogFolder():
@@ -44,7 +44,7 @@ def createLogger(name):
     console_formatter = logging.Formatter('%(name)-14s: %(levelname)-8s: %(message)s')
     
     # File handler
-    file_handler = logging.FileHandler(config.logFileName,mode='a')
+    file_handler = logging.FileHandler(logFileName,mode='a')
     file_handler.setLevel(fileHandlerLogLevel)
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
@@ -186,7 +186,7 @@ def convertToInt(SCCMval, dictionary):
             ardVal = flow1 + addNum
     
     ardVal = round(ardVal)
-    return ardVal
+    return int(ardVal)
 
 
 def getTimeNow():

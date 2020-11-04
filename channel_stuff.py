@@ -15,13 +15,21 @@ instTypes = config.instTypes
 
 btnWidth = 50
 
+class row(QWidget):
+    def __init__(self,name,instrument):
+        super().__init__()
+        self.name = name
+        self.instrument = instrument
+
 
 class channelObj(QObject):
-    def __init__(self, port="", instrument="", name=""):
+    def __init__(self, instrument="", name=""):
         super().__init__()
-        self.port = port
         self.instrument = instrument
         self.name = name
+
+        self.checkBox = QCheckBox(checked=True)
+        self.checkBoxLbl = QLabel(text=self.name)
 
         self.nameWidget = QLineEdit(text=name,toolTip="whatever you want the channel to be called")
         
@@ -31,6 +39,11 @@ class channelObj(QObject):
         if self.instrument in AllItems:
             i_idx = AllItems.index(self.instrument)
             self.instWidget.setCurrentIndex(i_idx)
+
+        self.hLayout = QHBoxLayout()
+        self.hLayout.addWidget(self.checkBox)
+        self.hLayout.addWidget(self.instWidget)
+        self.hLayout.addWidget(self.nameWidget)
 
 class channelDialog(QDialog):
 
@@ -142,15 +155,10 @@ class channelGroupBoxObject(QGroupBox):
         self.infoSpace = QWidget()
 
         self.nameLbl = QLabel(text="Name:")
-        self.nameWidget = QLineEdit(text=self.name,readOnly=True)
-        self.nameEditBtn = QPushButton(text="Edit",checkable=True,toggled=self.nameEditToggled)
+        self.nameWidget = QLineEdit(text=self.name,readOnly=True,returnPressed=self.nameEditClicked)
+        self.nameEditBtn = QPushButton(text="Edit",checkable=True,clicked=self.nameEditClicked)
+        self.nameWidget.setEnabled(False)
         self.nameEditBtn.setFixedWidth(btnWidth)
-        self.nameWid_palette = QPalette()
-        self.nonEditColor = self.palette().midlight().color()
-        self.backToWhite = self.palette().base().color()
-        self.nameWid_palette.setColor(QPalette.Base,self.nonEditColor)
-        self.nameWidget.setPalette(self.nameWid_palette)
-        self.nameWidget.returnPressed.connect(lambda: self.nameEditBtn.toggle())
         name_layout = QHBoxLayout()
         name_layout.addWidget(self.nameWidget)
         name_layout.addWidget(self.nameEditBtn)
@@ -165,11 +173,11 @@ class channelGroupBoxObject(QGroupBox):
         
         self.updateButton = QPushButton(text='Update',clicked=self.update)
         
-        layout1 = QFormLayout()
-        layout1.addRow(self.nameLbl,name_layout)
-        layout1.addRow(self.instLbl,self.instWidget)
-        layout1.addRow(self.updateButton)
-        self.infoSpace.setLayout(layout1)
+        layout = QFormLayout()
+        layout.addRow(self.nameLbl,name_layout)
+        layout.addRow(self.instLbl,self.instWidget)
+        layout.addRow(self.updateButton)
+        self.infoSpace.setLayout(layout)
     
     def createInstrumentWidget(self):        
         if self.instrument == 'olfactometer':
@@ -183,13 +191,10 @@ class channelGroupBoxObject(QGroupBox):
             self.instrument_widget = QGroupBox("empty widget for " + self.instrument)
     
     
-    
     # ACTUAL FUNCTIONS THE THING NEEDS
-    def nameEditToggled(self):
-        if self.nameEditBtn.isChecked():
+    def nameEditClicked(self, checked):
+        if checked:
             self.nameWidget.setReadOnly(False)
-            self.nameWid_palette.setColor(QPalette.Base, self.backToWhite)
-            self.nameWidget.setPalette(self.nameWid_palette)
             self.nameEditBtn.setText("Done")
             self.nameWidget.setEnabled(True)
         else:
@@ -199,9 +204,6 @@ class channelGroupBoxObject(QGroupBox):
                 self.nameWidget.setText(self.name)
                 self.instrument_widget.updateName(newName)
                 self.logger.debug('name changed to %s', self.name)
-            self.nameWidget.setReadOnly(True)
-            self.nameWid_palette.setColor(QPalette.Base, self.nonEditColor)
-            self.nameWidget.setPalette(self.nameWid_palette)
             self.nameEditBtn.setText("Edit")
             self.nameWidget.setEnabled(False)
     

@@ -9,6 +9,7 @@ import utils, config
 defMode = 'auto'
 defVl = str(config.defVlval)
 lineEditWidth = 45
+defSensorCal = 'Honeywell 3100V'
 
 
 class Vial(QGroupBox):
@@ -22,11 +23,13 @@ class Vial(QGroupBox):
         self.mode = defMode
 
         # get the dictionary u want
-        self.sensDict = self.parent.cal_sheets[0]        
+        self.sensDict = defSensorCal
+        #self.sensDict = self.parent.cal_sheets[0]
 
         className = type(self).__name__
         loggerName = className + ' (' + self.parent.name + ' ' + self.slave + str(self.vialNum) + ')'
         self.logger = utils.createLogger(loggerName)
+        self.logger.debug('Creating %s', loggerName)
 
         self.getDefVals()
 
@@ -63,7 +66,6 @@ class Vial(QGroupBox):
             self.mainLayout.addWidget(self.dataReceiveBox)
             #self.resize(self.sizeHint())
     
-    
     def getDefVals(self):
         slaveVars = self.parent.ardConfig_s
         keysToGet = self.parent.keysToGet
@@ -71,6 +73,7 @@ class Vial(QGroupBox):
             keyStr = 'self.' + key
             exec(keyStr + '=slaveVars.get(key)')
     
+    # CREATE BOXES
     def createVialSettingsBox(self):
         self.vialSettingsBox = QGroupBox("vial settings")
 
@@ -205,6 +208,82 @@ class Vial(QGroupBox):
         self.dataReceiveBox.setLayout(layout)
     
 
+    def clicked_sensTypeEdit(self, checked):
+        if checked:
+            self.sensTypeBtn.setText("Done")
+            self.sensTypeBox.setEnabled(True)
+        else:
+            self.sensTypeBtn.setText("Edit")
+            self.sensTypeBox.setEnabled(False)
+            newSensType = self.sensTypeBox.currentText()
+            if not self.sensType == newSensType:
+                self.sensType = newSensType
+                self.logger.info('sensor type changed to: %s', self.sensType)
+                title = "Vial " + str(self.vialNum) + ": " + self.sensType
+                self.setTitle(title)
+    
+    def clicked_sensDictEdit(self, checked):
+        if checked:
+            self.sensDictBtn.setText("Done")
+            self.sensDictBox.setEnabled(True)
+        else:
+            self.sensDictBtn.setText("Edit")
+            self.sensDictBox.setEnabled(False)
+            newSensDict = self.sensDictBox.currentText()
+            if not self.sensDict == newSensDict:
+                self.sensDict = newSensDict
+                self.logger.info('sensor calibration table changed to: %s', self.sensDict)        
+    
+    
+    def toggled_PID(self, checked):
+        if checked:
+            self.sendP('ON')
+            self.PIDToggle.setText('Turn PID Off')
+        else:
+            self.sendP('OF')
+            self.PIDToggle.setText('Turn PID On')
+
+    def toggled_ctrlOpen(self, checked):
+        if checked:
+            self.sendP('OC')
+            self.CtrlToggle.setText('Close prop valve')
+        else:
+            self.sendP('CC')
+            self.CtrlToggle.setText('Open prop valve')
+    
+    def toggled_valveOpen(self, checked, value=""):
+        if checked:
+            self.sendP('OV')
+            self.VlToggle.setText('Close Iso Valve')
+        else:
+            self.sendP('CV')
+            self.VlToggle.setText('Open Iso Valve')
+
+
+    
+    def sendP(self, parameter, val1="", val2="", val3=""):
+
+        if parameter == 'Sp':
+            s_dict = self.parent.sccm2Ard_dicts.get(self.sensDict)
+            calculatedSp = utils.convertToInt(float(val1),s_dict)
+            value = str(calculatedSp)
+        elif parameter == 'Kx':
+            if val1:    str_Kp = "_P" + val1
+            else:       str_Kp = ""
+            if val2:    str_Ki = "_I" + val2
+            else:       str_Ki = ""
+            if val3:    str_Kd = "_D" + val3
+            else:       str_Kd = ""
+            value = str_Kp + str_Ki + str_Kd
+            value = value[1:]   # remove the extra underscore at front
+            
+        else:
+            value = val1
+        
+        self.parent.sendParameter(self.slave,self.vialNum,parameter,value)
+
+    
+    # ACCESSED BY EXTERNAL THINGS
     def changeMode(self, newMode):
         if self.mode == newMode:
             self.logger.info('same mode as previous')
@@ -239,80 +318,6 @@ class Vial(QGroupBox):
                 self.mainLayout.addWidget(self.flowTuningBox,0,1)
                 self.mainLayout.addWidget(self.debugBox,1,1)
                 self.mainLayout.addWidget(self.dataReceiveBox,0,2,2,1)
-    
-    def sendP(self, parameter, val1="", val2="", val3=""):
-
-        if parameter == 'Sp':
-            s_dict = self.parent.sccm2Ard_dicts.get(self.sensDict)
-            calculatedSp = utils.convertToInt(float(val1),s_dict)
-            value = str(calculatedSp)
-        elif parameter == 'Kx':
-            if val1:    str_Kp = "_P" + val1
-            else:       str_Kp = ""
-            if val2:    str_Ki = "_I" + val2
-            else:       str_Ki = ""
-            if val3:    str_Kd = "_D" + val3
-            else:       str_Kd = ""
-            value = str_Kp + str_Ki + str_Kd
-            value = value[1:]   # remove the extra underscore at front
-        #elif parameter == 'OV':
-            
-        else:
-            value = val1
-        
-        self.parent.sendParameter(self.slave,self.vialNum,parameter,value)
-
-    def toggled_PID(self, checked):
-        if checked:
-            self.sendP('ON')
-            self.PIDToggle.setText('Turn PID Off')
-        else:
-            self.sendP('OF')
-            self.PIDToggle.setText('Turn PID On')
-
-    def toggled_ctrlOpen(self, checked):
-        if checked:
-            self.sendP('OC')
-            self.CtrlToggle.setText('Close prop valve')
-        else:
-            self.sendP('CC')
-            self.CtrlToggle.setText('Open prop valve')
-    
-    def toggled_valveOpen(self, checked, value=""):
-        if checked:
-            self.sendP('OV')
-            self.VlToggle.setText('Close Iso Valve')
-        else:
-            self.sendP('CV')
-            self.VlToggle.setText('Open Iso Valve')
-
-
-    
-    def clicked_sensTypeEdit(self, checked):
-        if checked:
-            self.sensTypeBtn.setText("Done")
-            self.sensTypeBox.setEnabled(True)
-        else:
-            self.sensTypeBtn.setText("Edit")
-            self.sensTypeBox.setEnabled(False)
-            newSensType = self.sensTypeBox.currentText()
-            if not self.sensType == newSensType:
-                self.sensType = newSensType
-                self.logger.info('sensor type changed to: %s', self.sensType)
-                title = "Vial " + str(self.vialNum) + ": " + self.sensType
-                self.setTitle(title)
-
-    def clicked_sensDictEdit(self, checked):
-        if checked:
-            self.sensDictBtn.setText("Done")
-            self.sensDictBox.setEnabled(True)
-        else:
-            self.sensDictBtn.setText("Edit")
-            self.sensDictBox.setEnabled(False)
-            newSensDict = self.sensDictBox.currentText()
-            if not self.sensDict == newSensDict:
-                self.sensDict = newSensDict
-                self.logger.info('sensor calibration table changed to: %s', self.sensDict)        
     
     def appendNew(self, value):
         flowValue = value[0:4]
