@@ -555,7 +555,7 @@ class olfactometer(QGroupBox):
         self.recordButton.setText("Create File && Start Recording")
         self.logFileOutputBox.clear()
     
-    def sendParameter(self, slave: str, vial, parameter: str, value=""):
+    def sendParameter(self, slave: str, vial:int, parameter: str, value=""):
         if parameter[0] == 'K' and parameter != 'Kx':
             str_param = 'Kx'
             nextChar = parameter[1].capitalize()
@@ -605,7 +605,7 @@ class olfactometer(QGroupBox):
                 self.slotToConnectTo = self.obj.exp01
 
                 self.p_slave = self.vialToRun[0]
-                self.p_vial = self.vialToRun[1]
+                self.p_vial = int(self.vialToRun[1])
                 for i in range(self.numSlaves):
                     if self.slaves[i].slaveName == self.p_slave: s_index = i
                 v_index = int(self.p_vial)-1
@@ -648,7 +648,7 @@ class olfactometer(QGroupBox):
         #widget_width = self.slaves[0].width()
         #widget_height = self.slaves[0].height() + self.slaves[1].height()
         
-
+    '''
     def exp01(self):
         sccmVal = random.randint(1,100)
         ardVal = utils.convertToInt(float(sccmVal),self.dictToUse)
@@ -657,7 +657,7 @@ class olfactometer(QGroupBox):
         time.sleep(5)
         self.sendParameter(self.p_slave,self.p_vial,'OV',str(self.dur_ON))
         #self.logger.debug('%s%s at %s sccm (%ss open, %ss closed)',self.p_slave,self.p_vial,sccmVal,self.dur_ON,self.dur_OFF)
-
+    '''
     
     def sendRandomSetpoint(self):
         sccmVal = random.randint(1,100)
