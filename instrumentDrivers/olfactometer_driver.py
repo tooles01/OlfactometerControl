@@ -41,6 +41,7 @@ defDurOff = 5
 defNumRuns = 5
 
 defManualCmd = 'A1_OV_5'
+waitBtSpAndOV = 1
 
 class worker(QObject):
     finished = pyqtSignal()
@@ -61,10 +62,10 @@ class worker(QObject):
         for i in range(self.numRuns):
             if self.threadON == True:
                 self.sendSetpoint.emit()
-                time.sleep(1)
+                time.sleep(waitBtSpAndOV)
                 self.sendOVnow.emit()
                 time.sleep(self.dur_ON)
-                time.sleep(self.dur_OFF)
+                time.sleep(self.dur_OFF-waitBtSpAndOV)
             else:
                 break
         self.finished.emit()

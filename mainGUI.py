@@ -28,9 +28,9 @@ class mainGUI(QWidget):
         self.createMainSettingsBox()
         self.createChannelSettingsBox()
         self.createDataFileBox()
-        self.mainSettingsBox.setFixedWidth(col1width)
-        self.channelSettingsBox.setFixedWidth(col1width)
-        self.dataFileBox.setFixedWidth(col1width)
+        #self.mainSettingsBox.setFixedWidth(col1width)
+        #self.channelSettingsBox.setFixedWidth(col1width)
+        #self.dataFileBox.setFixedWidth(col1width)
         
         col1 = QVBoxLayout()
         col1.addWidget(self.mainSettingsBox)
