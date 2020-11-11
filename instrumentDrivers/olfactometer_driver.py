@@ -35,7 +35,7 @@ rowsb4header = 2
 sccmRow = 0
 ardRow = 2
 
-# for exp01
+# for exp01b
 defDurOn = 5
 defDurOff = 5
 defNumRuns = 5
@@ -47,18 +47,20 @@ class worker(QObject):
     finished = pyqtSignal()
     sendNewParam = pyqtSignal(str,int,str,str)
     sendSetpoint = pyqtSignal()
+    sendRandSetpoint = pyqtSignal()
     sendOVnow = pyqtSignal()
     
     def __init__(self):
         super().__init__()
-        self.numRuns = 0
         self.dur_ON = 0
         self.dur_OFF = 0
+        self.numRuns = 0
+        #self.setpoint = 0
         self.threadON = False
     
     
     @pyqtSlot()
-    def exp01(self):
+    def exp01a(self):
         for i in range(self.numRuns):
             if self.threadON == True:
                 self.sendSetpoint.emit()
@@ -72,6 +74,31 @@ class worker(QObject):
         self.threadON = False
 
     
+    @pyqtSlot()
+    def exp01b(self):
+        for i in range(self.numRuns):
+            if self.threadON == True:
+                self.sendRandSetpoint.emit()
+                time.sleep(waitBtSpAndOV)
+                self.sendOVnow.emit()
+                time.sleep(self.dur_ON)
+                time.sleep(self.dur_OFF-waitBtSpAndOV)
+            else:
+                break
+        self.finished.emit()
+        self.threadON = False
+
+    @pyqtSlot()
+    def exp03(self):
+        for i in range(self.numRuns):
+            self.sendRandSetpoint.emit()
+            time.sleep(waitBtSpAndOV)
+            if self.threadOn == True:
+                self.sendOVnow.emit()
+                time.sleep(self.dur_ON)
+                time.sleep(self.dur_OFF)
+
+    '''
     @pyqtSlot()
     def setpointFunction(self): # a slot takes no params
         for A1 in setpointVals:
@@ -103,6 +130,7 @@ class worker(QObject):
             time.sleep(lengthOpen)
             time.sleep(lengthRest)
         self.finished.emit()
+    '''
 
 
 class olfactometer(QGroupBox):
@@ -133,9 +161,9 @@ class olfactometer(QGroupBox):
         self.createVialProgrammingBox()
         self.createDataFileBox()
         self.column2Layout.addWidget(self.masterBox)
-        self.column2Layout.addWidget(self.flowSettingsBox)
+        #self.column2Layout.addWidget(self.flowSettingsBox)
         self.column2Layout.addWidget(self.vialProgrammingBox)
-        self.column2Layout.addWidget(self.dataFileBox)
+        #self.column2Layout.addWidget(self.dataFileBox)
         #self.masterBox.setFixedWidth(col2Width)
         #self.vialProgrammingBox.setFixedWidth(col2Width)
         #self.dataFileBox.setFixedWidth(col2Width)
@@ -311,9 +339,9 @@ class olfactometer(QGroupBox):
         self.thread1 = QThread()
         self.obj.moveToThread(self.thread1)
         self.obj.sendNewParam.connect(self.sendParameter)
-        self.obj.sendSetpoint.connect(self.sendRandomSetpoint)
+        self.obj.sendSetpoint.connect(self.sendSetpoint)
+        self.obj.sendRandSetpoint.connect(self.sendRandomSetpoint)
         self.obj.sendOVnow.connect(self.sendOpenValve)
-        #self.obj.sendOVnow.connect(self.exp01)
         #self.obj.finished.connect(self.threadIsFinished)
     
     def createMasterBox(self):
@@ -356,7 +384,7 @@ class olfactometer(QGroupBox):
         self.programSelectCb = QComboBox()
         self.programSelectCb.addItems(programTypes)
         #self.programSelectCb.currentIndexChanged(self.changeProgramSelected)
-        #self.programSelectCb.currentTextChanged(self.changeProgramSelected)
+        self.programSelectCb.currentTextChanged.connect(self.changeProgramSelected)
         self.programStartButton = QPushButton(text="Start",checkable=True,clicked=self.programStartClicked,toolTip="must be in auto mode to start a program")
         self.programStartButton.setEnabled(False)
         
@@ -364,14 +392,17 @@ class olfactometer(QGroupBox):
         self.progSettingsLayout = QFormLayout()
         self.p_vial_sbox = QComboBox()
         self.p_vial_sbox.addItems(['A1','A2','B1','B2'])
+        self.p_spt_edit = QSpinBox(value=50)
         self.p_durON_sbox = QSpinBox(value=defDurOn)
         self.p_durOFF_sbox = QSpinBox(value=defDurOff)
         self.p_numTimes_sbox = QSpinBox(value=defNumRuns)
         self.progSettingsLayout.addRow(QLabel("Vial:"),self.p_vial_sbox)
+        self.progSettingsLayout.addRow(QLabel("Setpoint:"),self.p_spt_edit)
         self.progSettingsLayout.addRow(QLabel("Dur. open (s)"),self.p_durON_sbox)
         self.progSettingsLayout.addRow(QLabel("Dur.closed (s)"),self.p_durOFF_sbox)
         self.progSettingsLayout.addRow(QLabel("# of opens"),self.p_numTimes_sbox)
         self.progSettingsBox.setLayout(self.progSettingsLayout)
+        self.progSelected = self.programSelectCb.currentText()
 
         layout = QFormLayout()
         layout.addRow(programLbl,self.programSelectCb)
@@ -466,15 +497,135 @@ class olfactometer(QGroupBox):
             self.logger.warning('Serial port not open, cannot send parameter: %s', str_send)
 
 
-    '''
-    def changeProgramSelected(self):
-        # maybe to change the datafile name?
-        self.progSelected = self.programSelectCb.currentText()
-        if self.progSelected == programTypes[0]:
-            pass
-            # exp01
-    '''
+    # INTERFACE FUNCTIONS
 
+    def changeProgramSelected(self):
+        # change layout of box
+        newProgSelected = self.programSelectCb.currentText()
+        if self.progSelected != newProgSelected:
+            self.progSelected = newProgSelected
+
+            # update layout for that program
+            
+            # for exp01a:
+            if self.progSelected == programTypes[0]:
+                self.p_spt_edit.setEnabled(True)
+                
+            if self.progSelected == programTypes[1]:
+                self.p_spt_edit.setEnabled(False)
+    
+    
+    def programStartClicked(self, checked):
+        if checked:
+            self.programStartButton.setText('Stop')
+            program2run = self.programSelectCb.currentText()
+            
+            self.vialToRun = self.p_vial_sbox.currentText() # get everything from the GUI
+            self.constSpt = self.p_spt_edit.value()
+            self.dur_ON = self.p_durON_sbox.value()
+            self.dur_OFF = self.p_durOFF_sbox.value()
+            self.numRuns = self.p_numTimes_sbox.value()
+            
+            self.p_slave = self.vialToRun[0]
+            self.p_vial = int(self.vialToRun[1])
+            
+            #self.obj.setpoint = self.constSpt   # give worker all the values
+            self.obj.dur_ON = self.dur_ON
+            self.obj.dur_OFF = self.dur_OFF
+            self.obj.numRuns = self.numRuns
+
+            for i in range(self.numSlaves):
+                if self.slaves[i].slaveName == self.p_slave: s_index = i
+            v_index = int(self.p_vial)-1
+            sensDictName = self.slaves[s_index].vials[v_index].sensDict
+            self.dictToUse = self.sccm2Ard_dicts.get(sensDictName)
+
+            if program2run == programTypes[0]:  # exp01a
+                self.slotToConnectTo = self.obj.exp01a
+
+            if program2run == programTypes[1]:  # exp01b
+                self.slotToConnectTo = self.obj.exp01b
+
+            #if program2run == programTypes[1]:  # A1 testing
+            #    self.slotToConnectTo = self.obj.singleLineSetpointChange
+            
+            if program2run == programTypes[2]:  # exp03
+                self.slotToConnectTo = self.obj.exp03
+            
+            self.thread1.started.connect(self.slotToConnectTo)  # connect thread started to worker slot
+            self.obj.finished.connect(self.threadIsFinished)
+            self.thread1.start()
+            self.obj.threadON = True
+
+            self.logger.info('Starting program: %s',program2run)
+            
+        else:
+            self.threadIsFinished()
+            #if self.thread1.isRunning():
+            #    self.logger.info('Program ended')
+            #    self.thread1.quit()
+            #    self.thread1.started.disconnect(self.slotToConnectTo)
+    
+    
+    
+    def toggled_record(self, checked):
+        if checked:
+            self.record = True
+            self.enteredFileName = self.enterFileName.text() + dataFileType
+            if not os.path.exists(self.enteredFileName):
+                self.logger.info('Creating new olfa datafile: %s',self.enteredFileName)
+                File = self.enteredFileName, ' '
+                Time = "File Created:", str(currentDate + ' ' + utils.getTimeNow())
+                DataHead = "Time","Vial/Line","Item","Value","Ctrl (prop.valve)"
+                with open(self.enteredFileName,'a',newline='') as f:
+                    writer = csv.writer(f, delimiter=delimChar)
+                    writer.writerow(File)
+                    writer.writerow("")
+                    writer.writerow(Time)
+                    writer.writerow("")
+                    writer.writerow(DataHead)
+            else:
+                self.logger.info('Resuming recording to %s', self.enteredFileName)
+            self.recordButton.setText("Pause Recording")
+
+        else:
+            self.record = False
+            self.recordButton.setText("Resume Recording")
+            self.logger.info('Paused recording to %s', self.enteredFileName)
+    
+    def clicked_endRecord(self,checked):
+        self.logger.info('End recording')
+        if self.recordButton.isChecked() == True:
+            self.recordButton.toggle()
+        self.record = False
+
+        self.lastExpNum = self.lastExpNum + 1
+        newFileName = utils.makeNewFileName(olfFileLbl, self.lastExpNum)
+        
+        self.enterFileName.setText(newFileName)
+        self.recordButton.setText("Create File && Start Recording")
+        self.logFileOutputBox.clear()
+    
+    def updateMode(self):
+        self.mode = self.modeCb.currentText()
+
+        for s in self.slaves:
+            for v in s.vials:
+                if self.mode == 'auto': 
+                    v.changeMode('auto')
+                if self.mode == 'manual':
+                    v.changeMode('manual')
+            s.resize(s.sizeHint())
+        self.allSlavesWid.resize(self.allSlavesWid.sizeHint())
+        self.slaveScrollArea.resize(self.slaveScrollArea.sizeHint())
+        #self.slaveGroupBox.resize(self.slaveGroupBox.sizeHint())
+        #self.resize(self.sizeHint())
+        #widget_width = self.slaves[0].width()
+        #widget_height = self.slaves[0].height() + self.slaves[1].height()
+    
+    
+    
+    
     # ACTUAL FUNCTIONS THE THING NEEDS
     def receive(self):
         if self.serial.canReadLine() == True:
@@ -517,44 +668,6 @@ class olfactometer(QGroupBox):
             else:
                 self.logger.debug('warning - text from Arduino was %s bytes: %s', len(text), text)
     
-    def toggled_record(self, checked):
-        if checked:
-            self.record = True
-            self.enteredFileName = self.enterFileName.text() + dataFileType
-            if not os.path.exists(self.enteredFileName):
-                self.logger.info('Creating new olfa datafile: %s',self.enteredFileName)
-                File = self.enteredFileName, ' '
-                Time = "File Created:", str(currentDate + ' ' + utils.getTimeNow())
-                DataHead = "Time","Vial/Line","Item","Value","Ctrl (prop.valve)"
-                with open(self.enteredFileName,'a',newline='') as f:
-                    writer = csv.writer(f, delimiter=delimChar)
-                    writer.writerow(File)
-                    writer.writerow("")
-                    writer.writerow(Time)
-                    writer.writerow("")
-                    writer.writerow(DataHead)
-            else:
-                self.logger.info('Resuming recording to %s', self.enteredFileName)
-            self.recordButton.setText("Pause Recording")
-
-        else:
-            self.record = False
-            self.recordButton.setText("Resume Recording")
-            self.logger.info('Paused recording to %s', self.enteredFileName)
-    
-    def clicked_endRecord(self,checked):
-        self.logger.info('End recording')
-        if self.recordButton.isChecked() == True:
-            self.recordButton.toggle()
-        self.record = False
-
-        self.lastExpNum = self.lastExpNum + 1
-        newFileName = utils.makeNewFileName(olfFileLbl, self.lastExpNum)
-        
-        self.enterFileName.setText(newFileName)
-        self.recordButton.setText("Create File && Start Recording")
-        self.logFileOutputBox.clear()
-    
     def sendParameter(self, slave: str, vial:int, parameter: str, value=""):
         if parameter[0] == 'K' and parameter != 'Kx':
             str_param = 'Kx'
@@ -587,83 +700,16 @@ class olfactometer(QGroupBox):
         except AttributeError as err:
             self.logger.warning('Serial port not open, cannot send parameter: %s', str_send)
 
-    def programStartClicked(self, checked):
-        if checked:
-            self.programStartButton.setText('Stop')
-            program2run = self.programSelectCb.currentText()                
-
-            if program2run == programTypes[0]:  # exp01    
-                self.vialToRun = self.p_vial_sbox.currentText()
-                self.dur_ON = self.p_durON_sbox.value()
-                self.dur_OFF = self.p_durOFF_sbox.value()
-                self.numRuns = self.p_numTimes_sbox.value()
-                
-                self.obj.numRuns = self.numRuns
-                self.obj.dur_ON = self.dur_ON
-                self.obj.dur_OFF = self.dur_OFF
-
-                self.slotToConnectTo = self.obj.exp01
-
-                self.p_slave = self.vialToRun[0]
-                self.p_vial = int(self.vialToRun[1])
-                for i in range(self.numSlaves):
-                    if self.slaves[i].slaveName == self.p_slave: s_index = i
-                v_index = int(self.p_vial)-1
-                sensDictName = self.slaves[s_index].vials[v_index].sensDict
-                self.dictToUse = self.sccm2Ard_dicts.get(sensDictName)
-
-            if program2run == programTypes[1]:  # A1 testing
-                self.slotToConnectTo = self.obj.singleLineSetpointChange
-            if program2run == programTypes[2]:
-                self.slotToConnectTo = self.obj.setpointFunction
-            
-            self.thread1.started.connect(self.slotToConnectTo)  # connect thread started to worker slot
-            self.obj.finished.connect(self.threadIsFinished)
-            self.thread1.start()
-            self.obj.threadON = True
-
-            self.logger.info('Starting program: %s',program2run)
-            
-        else:
-            self.threadIsFinished()
-            #if self.thread1.isRunning():
-            #    self.logger.info('Program ended')
-            #    self.thread1.quit()
-            #    self.thread1.started.disconnect(self.slotToConnectTo)
     
-    def updateMode(self):
-        self.mode = self.modeCb.currentText()
-
-        for s in self.slaves:
-            for v in s.vials:
-                if self.mode == 'auto': 
-                    v.changeMode('auto')
-                if self.mode == 'manual':
-                    v.changeMode('manual')
-            s.resize(s.sizeHint())
-        self.allSlavesWid.resize(self.allSlavesWid.sizeHint())
-        self.slaveScrollArea.resize(self.slaveScrollArea.sizeHint())
-        #self.slaveGroupBox.resize(self.slaveGroupBox.sizeHint())
-        #self.resize(self.sizeHint())
-        #widget_width = self.slaves[0].width()
-        #widget_height = self.slaves[0].height() + self.slaves[1].height()
-        
-    '''
-    def exp01(self):
-        sccmVal = random.randint(1,100)
+    def sendSetpoint(self):
+        sccmVal = self.constSpt
         ardVal = utils.convertToInt(float(sccmVal),self.dictToUse)
-
         self.sendParameter(self.p_slave,self.p_vial,'Sp',str(ardVal))
-        time.sleep(5)
-        self.sendParameter(self.p_slave,self.p_vial,'OV',str(self.dur_ON))
-        #self.logger.debug('%s%s at %s sccm (%ss open, %ss closed)',self.p_slave,self.p_vial,sccmVal,self.dur_ON,self.dur_OFF)
-    '''
     
     def sendRandomSetpoint(self):
         sccmVal = random.randint(1,100)
         ardVal = utils.convertToInt(float(sccmVal),self.dictToUse)
         self.sendParameter(self.p_slave,self.p_vial,'Sp',str(ardVal))
-
     
     def sendOpenValve(self):
         dur = self.dur_ON
