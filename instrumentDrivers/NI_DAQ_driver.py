@@ -51,6 +51,7 @@ class NiDaq(QGroupBox):
         className = type(self).__name__
         loggerName = className + ' (' + self.name + ')'
         self.logger = utils.createLogger(loggerName)
+        self.logger.debug('Creating module for %s', loggerName)
 
         self.createConnectBox()
         self.createSettingsBox()
@@ -62,10 +63,10 @@ class NiDaq(QGroupBox):
 
         mainLayout = QHBoxLayout()
         mainLayout.addLayout(col1)
-#        mainLayout.addWidget(self.connectBox)
+        #mainLayout.addWidget(self.connectBox)
         mainLayout.addWidget(self.dataReceiveBox)
         self.setLayout(mainLayout)
-        self.setTitle(loggerName)
+        self.setTitle(self.name)
     
     
     # CONNECT TO DEVICE
