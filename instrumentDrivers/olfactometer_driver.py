@@ -559,7 +559,7 @@ class olfactometer(QGroupBox):
             self.logger.info('Starting program: %s',program2run)
             
         else:
-            self.window.clicked_endRecord()
+            self.window().clicked_endRecord()
             self.threadIsFinished()    
     
     
