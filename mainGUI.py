@@ -12,7 +12,7 @@ users = config.users
 datafileLbl = config.datafileLbl
 dataFileType = config.dataFileType
 delimChar = config.delimChar
-col1width = 300
+col1width = 500
 
 class mainGUI(QWidget):
 
@@ -28,9 +28,9 @@ class mainGUI(QWidget):
         self.createMainSettingsBox()
         self.createChannelSettingsBox()
         self.createDataFileBox()
-        #self.mainSettingsBox.setFixedWidth(col1width)
-        #self.channelSettingsBox.setFixedWidth(col1width)
-        #self.dataFileBox.setFixedWidth(col1width)
+        self.mainSettingsBox.setFixedWidth(col1width)
+        self.channelSettingsBox.setFixedWidth(col1width)
+        self.dataFileBox.setFixedWidth(col1width)
         
         col1 = QVBoxLayout()
         col1.addWidget(self.mainSettingsBox)
@@ -354,7 +354,7 @@ class mainGUI(QWidget):
                         with open(self.enteredFileName,'a',newline='') as f:
                             writer = csv.writer(f, delimiter=delimChar)
                             writer.writerow(toWrite)
-                            if unit == 'OV':
-                                print(utils.getTimeNow() + '\trecorded to file')
+                            #if unit == 'OV':
+                                #print(utils.getTimeNow() + '\trecorded to file')
                         display = str(toWrite)
                         self.dataFileOutputBox.append(display[1:-1])
