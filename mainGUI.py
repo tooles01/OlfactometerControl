@@ -12,7 +12,7 @@ users = config.users
 datafileLbl = config.datafileLbl
 dataFileType = config.dataFileType
 delimChar = config.delimChar
-col1width = 500
+col1width = 300
 
 class mainGUI(QWidget):
 
@@ -333,7 +333,7 @@ class mainGUI(QWidget):
             self.logger.info('Paused recording to %s',self.enteredFileName)
             self.recordButton.setText("Resume Recording")
 
-    def clicked_endRecord(self, checked):
+    def clicked_endRecord(self):
         self.logger.info('Ended recording to %s', self.enteredFileName)
         if self.recordButton.isChecked() == True:
             self.recordButton.setChecked(False)
