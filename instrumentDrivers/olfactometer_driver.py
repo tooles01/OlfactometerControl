@@ -80,7 +80,7 @@ class worker(QObject):
             if self.threadON == True:
                 self.w_sendRandSetpoint.emit()
                 time.sleep(waitBtSpAndOV)
-                self.sendOVnow.emit()
+                self.w_sendOVnow.emit()
                 time.sleep(self.dur_ON)
                 time.sleep(self.dur_OFF-waitBtSpAndOV)
             else:
