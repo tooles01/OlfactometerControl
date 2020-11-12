@@ -309,8 +309,8 @@ class mainGUI(QWidget):
     '''
     
     
-    def clicked_record(self, checked):
-        if checked:
+    def clicked_record(self):
+        if self.recordButton.isChecked() == True:
             self.recordButton.setText("Pause Recording")
             self.endRecordButton.setEnabled(True)
             self.enteredFileName = self.enterFileName.text() + dataFileType

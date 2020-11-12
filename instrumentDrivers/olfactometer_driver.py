@@ -507,8 +507,11 @@ class olfactometer(QGroupBox):
     
     def programStartClicked(self, checked):
         if checked:
-            #if self.recordButton.isChecked() == False:
-                #self.recordButton.
+            if self.window().recordButton.isChecked() == False:
+                self.logger.debug('main window record button is not checked, checking')
+                self.window().recordButton.setChecked()
+            else:
+                self.logger.debug('main window record button is already checked')
             self.programStartButton.setText('Stop')
             program2run = self.programSelectCb.currentText()
             
