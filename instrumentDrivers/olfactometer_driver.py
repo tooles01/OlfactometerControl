@@ -170,7 +170,7 @@ class olfactometer(QGroupBox):
     def getSlaveInfo(self):
         curDir = os.getcwd()
         olfaConfigDir = utils.findOlfaConfigFolder()
-        self.logger.info('getting config files from %s', olfaConfigDir)
+        self.logger.debug('getting config files from %s', olfaConfigDir)
         os.chdir(olfaConfigDir)
 
         # VARIABLES FROM MASTER CONFIG FILE
@@ -324,7 +324,7 @@ class olfactometer(QGroupBox):
         self.obj.w_sendRandSetpoint.connect(self.sendRandomSetpoint)
         self.obj.w_send2Setpoints.connect(self.send2Setpoints)
         self.obj.w_sendOVnow.connect(self.sendOpenValve)
-        #self.obj.finished.connect(self.threadIsFinished)
+        self.obj.finished.connect(self.threadIsFinished)
     
     def createMasterBox(self):
         self.masterBox = QGroupBox("Master Settings")
@@ -509,7 +509,8 @@ class olfactometer(QGroupBox):
         if checked:
             if self.window().recordButton.isChecked() == False:
                 self.logger.debug('main window record button is not checked, checking')
-                self.window().recordButton.setChecked()
+                self.window().recordButton.setChecked(True)
+                self.window().clicked_record()
             else:
                 self.logger.debug('main window record button is already checked')
             self.programStartButton.setText('Stop')
@@ -555,7 +556,7 @@ class olfactometer(QGroupBox):
                 self.slotToConnectTo = self.obj.exp03
             
             self.thread1.started.connect(self.slotToConnectTo)  # connect thread started to worker slot
-            self.obj.finished.connect(self.threadIsFinished)
+            #self.obj.finished.connect(self.threadIsFinished)
             self.thread1.start()
             self.obj.threadON = True
 
@@ -563,7 +564,7 @@ class olfactometer(QGroupBox):
             
         else:
             self.window().clicked_endRecord()
-            self.threadIsFinished()    
+            self.threadIsFinished()
     
     
     def toggled_record(self, checked):

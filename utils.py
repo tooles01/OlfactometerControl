@@ -60,10 +60,7 @@ def createLogger(name):
     if anythingInIt == 0:   # if logfile is empty
         logger.info('~~ Log File for %s ~~', currentDate)
         logger.info('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-        #logFileLoc = logger.handlers[0].baseFilename
-        #logger.info('Logging to %s', logFileLoc)
     
-    logger.debug('Created logger (%s)', name)
     return logger
 
 def findOlfaConfigFolder():

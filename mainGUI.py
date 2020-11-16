@@ -23,7 +23,7 @@ class mainGUI(QWidget):
         
         className = type(self).__name__
         self.logger = utils.createLogger(className)
-        self.logger.info('%s channels:', len(self.channels))
+        self.logger.debug('%s channels:', len(self.channels))
         
         self.createMainSettingsBox()
         self.createChannelSettingsBox()
@@ -196,13 +196,6 @@ class mainGUI(QWidget):
     def createDataFileBox(self):
         self.dataFileBox = QGroupBox("DataFile")
 
-        #self.whoRecordBox = QGroupBox()
-        #self.whoRecord_layout = QFormLayout()
-        #self.whoRecord_layout.addWidget(QLabel(text="Record from:"))
-        #for c in self.c_Rows:
-        #    self.whoRecord_layout.addRow(c.checkBox,c.checkBoxLbl)
-        #self.whoRecordBox.setLayout(self.whoRecord_layout)
-
         files = os.listdir()
         dataFiles = [x for x in files if datafileLbl in x]  # files with fileLbl in them
         if not dataFiles:
@@ -354,7 +347,5 @@ class mainGUI(QWidget):
                         with open(self.enteredFileName,'a',newline='') as f:
                             writer = csv.writer(f, delimiter=delimChar)
                             writer.writerow(toWrite)
-                            #if unit == 'OV':
-                                #print(utils.getTimeNow() + '\trecorded to file')
                         display = str(toWrite)
                         self.dataFileOutputBox.append(display[1:-1])
