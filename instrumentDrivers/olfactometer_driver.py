@@ -36,9 +36,9 @@ sccmRow = 0
 ardRow = 2
 
 # for exp01b
-defDurOn = 5
-defDurOff = 5
-defNumRuns = 5
+defDurOn = 3
+defDurOff = 2
+defNumRuns = 3
 
 defManualCmd = 'A1_OV_5'
 waitBtSpAndOV = 1
@@ -514,7 +514,7 @@ class olfactometer(QGroupBox):
             else:
                 self.logger.debug('main window record button is already checked')
             self.programStartButton.setText('Stop')
-            program2run = self.programSelectCb.currentText()
+            self.program2run = self.programSelectCb.currentText()
             
             self.vialToRun1 = self.p_vial1_sbox.currentText() # get everything from the GUI
             self.vialToRun2 = self.p_vial2_sbox.currentText()
@@ -543,26 +543,19 @@ class olfactometer(QGroupBox):
             sensDictName2 = self.slaves[s_index2].vials[v_index2].sensDict
             self.dictToUse2 = self.sccm2Ard_dicts.get(sensDictName2)
 
-            if program2run == programTypes[0]:  # exp01a
-                self.slotToConnectTo = self.obj.exp01a
-
-            if program2run == programTypes[1]:  # exp01b
-                self.slotToConnectTo = self.obj.exp01b
-
-            if program2run == programTypes[2]:  # exp02
-                self.slotToConnectTo = self.obj.exp02
+            if self.program2run == programTypes[0]:     self.thread1.started.connect(self.obj.exp01a)
+            if self.program2run == programTypes[1]:     self.thread1.started.connect(self.obj.exp01b)
+            if self.program2run == programTypes[2]:     self.thread1.started.connect(self.obj.exp02)            
+            if self.program2run == programTypes[3]:     self.thread1.started.connect(self.obj.exp03)
             
-            if program2run == programTypes[2]:  # exp03
-                self.slotToConnectTo = self.obj.exp03
-            
-            self.thread1.started.connect(self.slotToConnectTo)  # connect thread started to worker slot
-            #self.obj.finished.connect(self.threadIsFinished)
+            #self.thread1.started.connect(self.slotToConnectTo)  # connect thread started to worker slot
             self.thread1.start()
             self.obj.threadON = True
 
-            self.logger.info('Starting program: %s',program2run)
+            self.logger.info('Starting program: %s',self.program2run)
             
         else:
+            self.logger.info('program stopped early by user')
             self.window().clicked_endRecord()
             self.threadIsFinished()
     
@@ -726,11 +719,14 @@ class olfactometer(QGroupBox):
     
     def threadIsFinished(self):
         self.obj.threadON = False
-        self.thread1.quit()
+        #self.thread1.quit()
+        self.thread1.terminate()
         self.programStartButton.setChecked(False)
         self.programStartButton.setText('Start')
         self.logger.info('Finished program, quit thread')
-        #self.thread1.started.disconnect(self.slotToConnectTo)
+        self.setUpThreads()
+        if self.window().recordButton.isChecked():
+            self.window().clicked_endRecord()
 
     
     def updatePort(self, newPort):
