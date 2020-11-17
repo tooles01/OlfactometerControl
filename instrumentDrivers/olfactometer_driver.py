@@ -36,9 +36,9 @@ sccmRow = 0
 ardRow = 2
 
 # for exp01b
-defDurOn = 3
-defDurOff = 2
-defNumRuns = 3
+defDurOn = 5
+defDurOff = 5
+defNumRuns = 10
 
 defManualCmd = 'A1_OV_5'
 waitBtSpAndOV = 1
@@ -507,12 +507,12 @@ class olfactometer(QGroupBox):
     
     def programStartClicked(self, checked):
         if checked:
-            if self.window().recordButton.isChecked() == False:
-                self.logger.debug('main window record button is not checked, checking')
-                self.window().recordButton.setChecked(True)
-                self.window().clicked_record()
-            else:
-                self.logger.debug('main window record button is already checked')
+            #if self.window().recordButton.isChecked() == False:
+            #    self.logger.debug('main window record button is not checked, checking')
+            #    self.window().recordButton.setChecked(True)
+            #    self.window().clicked_record()
+            #else:
+            #    self.logger.debug('main window record button is already checked')
             self.programStartButton.setText('Stop')
             self.program2run = self.programSelectCb.currentText()
             
@@ -725,8 +725,8 @@ class olfactometer(QGroupBox):
         self.programStartButton.setText('Start')
         self.logger.info('Finished program, quit thread')
         self.setUpThreads()
-        if self.window().recordButton.isChecked():
-            self.window().clicked_endRecord()
+        #if self.window().recordButton.isChecked():
+        #    self.window().clicked_endRecord()
 
     
     def updatePort(self, newPort):
