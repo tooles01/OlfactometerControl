@@ -15,12 +15,6 @@ instTypes = config.instTypes
 
 btnWidth = 50
 
-class row(QWidget):
-    def __init__(self,name,instrument):
-        super().__init__()
-        self.name = name
-        self.instrument = instrument
-
 
 class channelObj(QObject):
     def __init__(self, instrument="", name=""):
@@ -40,6 +34,7 @@ class channelObj(QObject):
             i_idx = AllItems.index(self.instrument)
             self.instWidget.setCurrentIndex(i_idx)
 
+        self.instrument = self.instWidget.currentText()
         self.hLayout = QHBoxLayout()
         self.hLayout.addWidget(self.checkBox)
         self.hLayout.addWidget(self.instWidget)
@@ -140,46 +135,12 @@ class channelGroupBoxObject(QGroupBox):
         className = type(self).__name__
         loggerName = className + ' (' + self.name + ')'
         self.logger = utils.createLogger(loggerName)
-
-        self.createInfoSpace()
+        
         self.createInstrumentWidget()
-
-        self.layout = QHBoxLayout()
-        self.layout.addWidget(self.infoSpace)
-        self.layout.addWidget(self.instrument_widget)
-        self.setLayout(self.layout)
     
 
     # FUNCTIONS TO CREATE GUI
-    def createInfoSpace(self):
-        self.infoSpace = QWidget()
-
-        self.nameLbl = QLabel(text="Name:")
-        self.nameWidget = QLineEdit(text=self.name,readOnly=True,returnPressed=self.nameEditClicked)
-        self.nameEditBtn = QPushButton(text="Edit",checkable=True,clicked=self.nameEditClicked)
-        self.nameWidget.setEnabled(False)
-        self.nameEditBtn.setFixedWidth(btnWidth)
-        name_layout = QHBoxLayout()
-        name_layout.addWidget(self.nameWidget)
-        name_layout.addWidget(self.nameEditBtn)
-
-        self.instLbl = QLabel(text="Instrument:")
-        self.instWidget = QComboBox()
-        self.instWidget.addItems(instTypes)
-        AllItems = [self.instWidget.itemText(i) for i in range(self.instWidget.count())]
-        if self.instrument in AllItems:
-            i_idx = AllItems.index(self.instrument)
-            self.instWidget.setCurrentIndex(i_idx)
-        
-        self.updateButton = QPushButton(text='Update',clicked=self.update)
-        
-        layout = QFormLayout()
-        layout.addRow(self.nameLbl,name_layout)
-        layout.addRow(self.instLbl,self.instWidget)
-        layout.addRow(self.updateButton)
-        self.infoSpace.setLayout(layout)
-    
-    def createInstrumentWidget(self):        
+    def createInstrumentWidget(self):
         if self.instrument == 'olfactometer':
             self.instrument_widget = olfactometer_driver.olfactometer(self.name)
         elif self.instrument == 'flow sensor':
@@ -190,31 +151,3 @@ class channelGroupBoxObject(QGroupBox):
             self.logger.error('No module exists for selected instrument: %s',self.instrument)
             self.instrument_widget = QGroupBox("empty widget for " + self.instrument)
     
-    
-    # ACTUAL FUNCTIONS THE THING NEEDS
-    def nameEditClicked(self, checked):
-        if checked:
-            self.nameWidget.setReadOnly(False)
-            self.nameEditBtn.setText("Done")
-            self.nameWidget.setEnabled(True)
-        else:
-            newName = self.nameWidget.text()
-            if not self.name == newName:
-                self.name = newName
-                self.nameWidget.setText(self.name)
-                self.instrument_widget.updateName(newName)
-                self.logger.debug('name changed to %s', self.name)
-            self.nameEditBtn.setText("Edit")
-            self.nameWidget.setEnabled(False)
-    
-    def update(self):
-        newInst = self.instWidget.currentText()
-        
-        if not self.instrument == newInst:
-            self.instrument = newInst
-            self.logger.debug('inst changed to %s', self.instrument)
-
-            self.layout.removeWidget(self.instrument_widget)
-            sip.delete(self.instrument_widget)
-            self.createInstrumentWidget()
-            self.layout.addWidget(self.instrument_widget)
