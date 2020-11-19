@@ -35,9 +35,9 @@ arduinoMasterConfigFile = 'config_master.h'
 arduinoSlaveConfigFile = 'config_slave.h'
 testingModes = ['auto','manual']
 charsToRead = 16
-programTypes = ['exp01a (repeated setpoint)',
-                'exp01b (random setpoints 0-100)',
-                'exp02 (overlap vials)',
+programTypes = ['exp01a (1 vial, repeat setpoint)',
+                'exp01b (1 vial, random setpoints 0-100)',
+                'exp02 (2 vials, random setpoints: total flow=100)',
                 'exp03 (reproduce)']
 defVlval = 5
 sensorTypes = ["Honeywell 3100V", "Honeywell 3300V", "Honeywell 5101V"]
