@@ -50,6 +50,7 @@ class worker(QObject):
     w_sendRandSetpoint = pyqtSignal()
     w_send2Setpoints = pyqtSignal()
     w_sendOVnow = pyqtSignal()
+    w_sendOV2 = pyqtSignal()
     
     def __init__(self):
         super().__init__()
@@ -57,7 +58,6 @@ class worker(QObject):
         self.dur_OFF = 0
         self.numRuns = 0
         self.threadON = False
-    
     
     @pyqtSlot()
     def exp01a(self):
@@ -88,6 +88,22 @@ class worker(QObject):
         self.threadON = False
 
     @pyqtSlot()
+    def exp01c(self):
+        time.sleep(waitBtSpAndOV)
+        for i in range(self.numRuns):
+            if self.threadON == True:
+                self.w_sendOVnow.emit()
+                time.sleep(self.dur_ON)
+                time.sleep(self.dur_OFF)
+                self.w_sendOV2.emit()
+                time.sleep(self.dur_ON)
+                time.sleep(self.dur_OFF)
+            else:
+                break
+        self.finished.emit()
+        self.threadON = False
+                
+    @pyqtSlot()
     def exp02(self):
         for i in range(self.numRuns):
             if self.threadON == True:
@@ -100,7 +116,6 @@ class worker(QObject):
                 break
         self.finished.emit()
         self.threadON = False
-
 
     @pyqtSlot()
     def exp03(self):
@@ -420,6 +435,7 @@ class olfactometer(QGroupBox):
         self.obj.w_sendRandSetpoint.connect(self.sendRandomSetpoint)
         self.obj.w_send2Setpoints.connect(self.send2Setpoints)
         self.obj.w_sendOVnow.connect(self.sendOpenValve)
+        self.obj.w_sendOV2.connect(self.sendOVnum2)
         self.obj.finished.connect(self.threadIsFinished)
     
     def changeProgramSelected(self):
@@ -482,8 +498,15 @@ class olfactometer(QGroupBox):
 
             if self.program2run == programTypes[0]:     self.thread1.started.connect(self.obj.exp01a)   # connect thread started to worker slot
             if self.program2run == programTypes[1]:     self.thread1.started.connect(self.obj.exp01b)
-            if self.program2run == programTypes[2]:     self.thread1.started.connect(self.obj.exp02)            
-            if self.program2run == programTypes[3]:     self.thread1.started.connect(self.obj.exp03)
+            if self.program2run == programTypes[2]:
+                self.thread1.started.connect(self.obj.exp01c)
+                sccmVal = self.constSpt
+                ardVal1 = utils.convertToInt(float(sccmVal),self.dictToUse1)
+                ardVal2 = utils.convertToInt(float(sccmVal),self.dictToUse2)
+                self.sendParameter(self.p_slave1,self.p_vial1,'Sp',str(ardVal1))
+                self.sendParameter(self.p_slave2,self.p_vial2,'Sp',str(ardVal2))
+            if self.program2run == programTypes[3]:     self.thread1.started.connect(self.obj.exp02)            
+            if self.program2run == programTypes[4]:     self.thread1.started.connect(self.obj.exp03)
             
             self.thread1.start()
             self.obj.threadON = True
@@ -518,6 +541,10 @@ class olfactometer(QGroupBox):
         dur = self.dur_ON
         self.sendParameter(self.p_slave1,self.p_vial1,'OV',str(dur))
 
+    def sendOVnum2(self):
+        dur = self.dur_ON
+        self.sendParameter(self.p_slave2,self.p_vial2,'OV',str(dur))
+    
     def threadIsFinished(self):
         self.obj.threadON = False
         self.thread1.terminate()
