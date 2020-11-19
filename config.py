@@ -37,6 +37,7 @@ testingModes = ['auto','manual']
 charsToRead = 16
 programTypes = ['exp01a (1 vial, repeat setpoint)',
                 'exp01b (1 vial, random setpoints 0-100)',
+                'exp01c (const setpoint, back and forth)',
                 'exp02 (2 vials, random setpoints: total flow=100)',
                 'exp03 (reproduce)']
 defVlval = 5
