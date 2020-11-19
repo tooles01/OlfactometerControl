@@ -5,7 +5,7 @@ import sip, os, csv
 from PyQt5.QtWidgets import (QComboBox, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QDialog, QTextEdit,
                              QScrollArea, QVBoxLayout, QWidget, QPushButton, QFormLayout, QSpinBox)
 import utils, config, channel_stuff
-
+from PyQt5.QtCore import QObject
 currentDate = utils.currentDate
 users = config.users
 
@@ -67,9 +67,8 @@ class mainGUI(QWidget):
         box1 = QGroupBox()
         numCLbl = QLabel("Number of channels:")
         self.numCBox = QSpinBox(value=self.numChannels,valueChanged=self.updateNumChans)
-        layout1 = QHBoxLayout()
-        layout1.addWidget(numCLbl)
-        layout1.addWidget(self.numCBox)
+        layout1 = QFormLayout()
+        layout1.addRow(numCLbl,self.numCBox)
         box1.setLayout(layout1)
         
         # channel info
@@ -83,17 +82,16 @@ class mainGUI(QWidget):
         lblRow.addWidget(chanLbl)
         self.layout2 = QVBoxLayout()
         self.layout2.addLayout(lblRow)
-        
-        self.rows = []
+        self.rows = []      # rows is here so we can save things ppl entered previously
         for r in range(self.numChannels):
             c = self.channels[r]
-            row = channel_stuff.row(c.name,c.instrument)
+            row = QWidget()
             row.setLayout(c.hLayout)
             self.rows.append(row)
             self.layout2.addWidget(row)
         box2.setLayout(self.layout2)
         
-        self.channelUpdateBtn = QPushButton(text="Update",clicked=self.updateChannels)
+        self.channelUpdateBtn = QPushButton(text="Update",clicked=self.updateChannels,toolTip='Update display')
         layout = QVBoxLayout()
         layout.addWidget(box1)
         layout.addWidget(box2)
@@ -112,19 +110,21 @@ class mainGUI(QWidget):
             
             channel_groupbox = channel_stuff.channelGroupBoxObject(c_name,c_instrument)
             self.c_Rows.append(channel_groupbox)
-            num = self.c_Rows.index(channel_groupbox)
-            self.c_Rows[num].setTitle('Channel ' + str(num+1))
-            self.allChannels_layout.addWidget(channel_groupbox)
+            self.allChannels_layout.addWidget(channel_groupbox.instrument_widget)
         
+        #self.allChannels_layout.SetMinAndMaxSize
         self.allChannelsWid = QWidget()
         self.allChannelsWid.setLayout(self.allChannels_layout)
         
         self.allChannelsScrollArea = QScrollArea()
         self.allChannelsScrollArea.setWidget(self.allChannelsWid)
+        #self.allChannelsScrollArea.SetMinAndMaxSize
 
         self.cs_layout = QVBoxLayout()
+        self.cs_layout.SetMinAndMaxSize
         self.cs_layout.addWidget(self.allChannelsScrollArea)
         self.channelGroupBox.setLayout(self.cs_layout)
+        #self.channelGroupBox.addWidget(self.allChannelsScrollArea)
     
     
     def updateNumChans(self):
@@ -146,7 +146,7 @@ class mainGUI(QWidget):
                     else:
                         c = channel_stuff.channelObj(name='',instrument='')
                         self.channels.append(c)
-                        row = channel_stuff.row(name='',instrument='')
+                        row = QWidget()
                         row.setLayout(c.hLayout)
                         self.rows.append(row)
                         self.layout2.addWidget(row)
@@ -162,35 +162,43 @@ class mainGUI(QWidget):
     def updateChannels(self):
         numPrev = len(self.c_Rows)
         numNew = len(self.channels)
-        self.logger.info('updating display to show %s channels',numNew)
+        self.logger.info('updating channels')
 
         for idx in range(numPrev):  # for each of the previous channels
             if idx < numNew:        # if its a value within the newnum (will exist)
-                newChan = self.channels[idx]
-                prevChan = self.c_Rows[idx]
-                if newChan.instrument != prevChan.instrument:   # if instrument is different, make new
-                    newChannel = channel_stuff.channelGroupBoxObject(name=newChan.name,instrument=newChan.instrument)
-                    self.allChannels_layout.removeWidget(self.c_Rows[idx])
+                newName = self.channels[idx].nameWidget.text()
+                prevName = self.c_Rows[idx].name
+                newInst = self.channels[idx].instWidget.currentText()
+                prevInst = self.c_Rows[idx].instrument
+                if newInst != prevInst:   # if instrument is different, make new
+                    newChannel = channel_stuff.channelGroupBoxObject(name=newName,instrument=newInst)
+                    self.allChannels_layout.removeWidget(self.c_Rows[idx].instrument_widget)
+                    sip.delete(self.c_Rows[idx].instrument_widget)
                     self.c_Rows[idx] = newChannel
-                    self.allChannels_layout.insertWidget(idx,self.c_Rows[idx])
+                    self.allChannels_layout.insertWidget(idx,self.c_Rows[idx].instrument_widget)
                 else:
-                    if newChan.name != prevChan.name:           # if instrument is same but name is different
-                        self.c_Rows[idx].name = newChan.name
+                    if newName != prevName:           # if instrument is same but name is different
+                        self.c_Rows[idx].name = newName
+                        self.c_Rows[idx].instrument_widget.setTitle(newName)
 
         if numPrev > numNew:        # delete extra channels
             num2Delete = numPrev - numNew
             for i in range(num2Delete):
-                self.allChannels_layout.removeWidget(self.c_Rows[-1])
-                sip.delete(self.c_Rows[-1])
+                self.allChannels_layout.removeWidget(self.c_Rows[-1].instrument_widget)
+                sip.delete(self.c_Rows[-1].instrument_widget)
                 self.c_Rows.pop(-1)
         
         if numPrev < numNew:        # add new channels
             num2Make = numNew - numPrev
             for i in range(num2Make):
-                newChan = self.channels[i+numPrev]
-                newChannel = channel_stuff.channelGroupBoxObject(name=newChan.name,instrument=newChan.instrument)
+                newName = self.channels[i+numPrev].nameWidget.text()
+                newInst = self.channels[i+numPrev].instWidget.currentText()
+                self.channels[i+numPrev].name = newName
+                self.channels[i+numPrev].instrument = newInst
+                #newChan = self.channels[i+numPrev]
+                newChannel = channel_stuff.channelGroupBoxObject(name=newName,instrument=newInst)
                 self.c_Rows.append(newChannel)
-                self.allChannels_layout.addWidget(newChannel)    
+                self.allChannels_layout.addWidget(newChannel.instrument_widget)
     
 
     def createDataFileBox(self):
@@ -246,61 +254,6 @@ class mainGUI(QWidget):
         if self.user != newUser:
             self.user = newUser
             self.logger.info('New user: %s', self.user)
-    
-    '''
-    def changeNumChannels(self):
-        self.logger.debug('changing # of channels')
-        
-        chSet_dlg = channel_stuff.channelDialog(self.channels)
-        if chSet_dlg.exec_() == QDialog.Accepted:
-            self.channels = chSet_dlg.channels
-
-            numPrev = len(self.c_Rows)
-            numNew = len(self.channels)
-            for idx in range(numPrev):  # for each of the previous channels
-                if idx < numNew:        # if it's a value within the newnum
-                    newChan = self.channels[idx]
-                    prevChan = self.c_Rows[idx]
-                    if newChan.instrument != prevChan.instrument:   # if instrument is different, make new
-                        newChannel = channel_stuff.channelGroupBoxObject(name=newChan.name,instrument=newChan.instrument)
-                        self.allChannels_layout.removeWidget(self.c_Rows[idx])
-                        sip.delete(self.c_Rows[idx])
-                        self.c_Rows[idx] = newChannel
-                        self.allChannels_layout.insertWidget(idx,self.c_Rows[idx])
-                        self.logger.info('Channel %s updated to: %s (%s)', idx, newChan.instrument, newChan.name)
-                    else:
-                        if newChan.name != prevChan.name:   # if instrument is same but name is different, update name
-                            self.c_Rows[idx].name = newChan.name
-                            self.logger.info('Channel %s (%s) name updated to %s', idx,newChan.instrument,newChan.name)
-            
-            if numPrev > numNew:    # delete extra channels
-                num2Delete = numPrev - numNew
-                for i in range(num2Delete):
-                    self.allChannels_layout.removeWidget(self.c_Rows[-1])
-                    sip.delete(self.c_Rows[-1])
-                    self.c_Rows.pop(-1)
-                    self.logger.info('Channel %s deleted', numPrev-i)
-            
-            if numPrev < numNew:    # add new channels
-                numChansToMake = numNew - numPrev
-                for i in range(numChansToMake):
-                    newChan = self.channels[i+numPrev]
-                    newChannel = channel_stuff.channelGroupBoxObject(name=newChan.name,instrument=newChan.instrument)
-                    self.c_Rows.append(newChannel)
-                    self.allChannels_layout.addWidget(newChannel)
-                    self.logger.info('Created channel %s: %s (%s)', numPrev+i,newChan.instrument,newChan.name)
-
-            numRows = self.whoRecord_layout.count()
-            for i in reversed(range(numRows)):
-                r = self.whoRecord_layout.itemAt(i)
-                self.whoRecord_layout.removeItem(r)
-                sip.delete(r)
-            
-            self.whoRecord_layout.addWidget(QLabel(text="Record from:"))
-            for i in self.c_Rows:
-                self.whoRecord_layout.addRow(i.checkBox,i.checkBoxLbl)
-    '''
-    
     
     def clicked_record(self):
         if self.recordButton.isChecked() == True:
