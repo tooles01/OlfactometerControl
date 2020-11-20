@@ -51,6 +51,7 @@ class worker(QObject):
     w_send2Setpoints = pyqtSignal()
     w_sendOVnow = pyqtSignal()
     w_sendOV2 = pyqtSignal()
+    w_openRandVial = pyqtSignal()
     
     def __init__(self):
         super().__init__()
@@ -102,7 +103,20 @@ class worker(QObject):
                 break
         self.finished.emit()
         self.threadON = False
-                
+
+    @pyqtSlot()
+    def exp01d(self):
+        time.sleep(waitBtSpAndOV)
+        for i in range(self.numRuns):
+            if self.threadON == True:
+                self.w_openRandVial.emit()
+                time.sleep(self.dur_ON)
+                time.sleep(self.dur_OFF)
+            else:
+                break
+        self.finished.emit()
+        self.threadON = False
+                    
     @pyqtSlot()
     def exp02(self):
         for i in range(self.numRuns):
@@ -436,36 +450,43 @@ class olfactometer(QGroupBox):
         self.obj.w_send2Setpoints.connect(self.send2Setpoints)
         self.obj.w_sendOVnow.connect(self.sendOpenValve)
         self.obj.w_sendOV2.connect(self.sendOVnum2)
+        self.obj.w_openRandVial.connect(self.openRandomValve)
         self.obj.finished.connect(self.threadIsFinished)
+        
     
     def changeProgramSelected(self):
         newProgSelected = self.programSelectCb.currentText()
         self.progSelected = newProgSelected
 
         if self.progSelected == programTypes[0]:    # exp01a
+            self.p_vial1_sbox.setEnabled(True)
             self.p_vial2_sbox.setEnabled(False)
             self.p_spt_edit.setEnabled(True)
-            
         if self.progSelected == programTypes[1]:    # exp01b
+            self.p_vial1_sbox.setEnabled(True)
             self.p_vial2_sbox.setEnabled(False)
             self.p_spt_edit.setEnabled(False)
-
-        if self.progSelected == programTypes[2]:    # exp02
+        if self.progSelected == programTypes[2]:    # exp01c
+            self.p_vial1_sbox.setEnabled(True)
             self.p_vial2_sbox.setEnabled(True)
             self.p_spt_edit.setEnabled(True)
-        
-        if self.progSelected == programTypes[3]:    # exp03
+        if self.progSelected == programTypes[3]:    # exp01d
+            self.p_vial1_sbox.setEnabled(False)
+            self.p_vial2_sbox.setEnabled(False)
+            self.p_spt_edit.setEnabled(True)
+        if self.progSelected == programTypes[4]:    # exp02
+            self.p_vial1_sbox.setEnabled(True)
+            self.p_vial2_sbox.setEnabled(True)
+            self.p_spt_edit.setEnabled(False)
+        if self.progSelected == programTypes[5]:    # exp03
+            self.p_vial1_sbox.setEnabled(True)
             self.p_vial2_sbox.setEnabled(False)
             self.p_spt_edit.setEnabled(True)
 
     def programStartClicked(self, checked):
         if checked:
             if self.window().recordButton.isChecked() == False:
-                self.logger.debug('main window record button is not checked, checking')
-                self.window().recordButton.setChecked(True)
-                self.window().clicked_record()
-            else:
-                self.logger.debug('main window record button is already checked')
+                self.logger.warning('not recording to file')
             self.programStartButton.setText('Stop')
             self.program2run = self.programSelectCb.currentText()
             
@@ -505,8 +526,23 @@ class olfactometer(QGroupBox):
                 ardVal2 = utils.convertToInt(float(sccmVal),self.dictToUse2)
                 self.sendParameter(self.p_slave1,self.p_vial1,'Sp',str(ardVal1))
                 self.sendParameter(self.p_slave2,self.p_vial2,'Sp',str(ardVal2))
-            if self.program2run == programTypes[3]:     self.thread1.started.connect(self.obj.exp02)            
-            if self.program2run == programTypes[4]:     self.thread1.started.connect(self.obj.exp03)
+            if self.program2run == programTypes[3]:
+                self.thread1.started.connect(self.obj.exp01d)
+                sccmVal = self.constSpt
+                self.dictToUse1 = self.sccm2Ard_dicts.get(self.slaves[0].vials[0].sensDict)
+                self.dictToUse2 = self.sccm2Ard_dicts.get(self.slaves[0].vials[1].sensDict)
+                self.dictToUse3 = self.sccm2Ard_dicts.get(self.slaves[1].vials[0].sensDict)
+                self.dictToUse4 = self.sccm2Ard_dicts.get(self.slaves[1].vials[1].sensDict)
+                ardVal1 = utils.convertToInt(float(sccmVal),self.dictToUse1)
+                ardVal2 = utils.convertToInt(float(sccmVal),self.dictToUse2)
+                ardVal3 = utils.convertToInt(float(sccmVal),self.dictToUse3)
+                ardVal4 = utils.convertToInt(float(sccmVal),self.dictToUse4)
+                self.sendParameter('A',1,'Sp',str(ardVal1));    time.sleep(.1)
+                self.sendParameter('A',2,'Sp',str(ardVal2));    time.sleep(.1)
+                self.sendParameter('B',1,'Sp',str(ardVal3));    time.sleep(.1)
+                self.sendParameter('B',2,'Sp',str(ardVal4));    time.sleep(.1)
+            if self.program2run == programTypes[4]:     self.thread1.started.connect(self.obj.exp02)
+            if self.program2run == programTypes[5]:     self.thread1.started.connect(self.obj.exp03)
             
             self.thread1.start()
             self.obj.threadON = True
@@ -544,6 +580,14 @@ class olfactometer(QGroupBox):
     def sendOVnum2(self):
         dur = self.dur_ON
         self.sendParameter(self.p_slave2,self.p_vial2,'OV',str(dur))
+    
+    def openRandomValve(self):
+        valve = random.randint(1,4)
+        if valve == 1:  slave = 'A'; vial=1
+        if valve == 2:  slave = 'A'; vial=2
+        if valve == 3:  slave = 'B'; vial=1
+        if valve == 4:  slave = 'B'; vial=2
+        self.sendParameter(slave,vial,'OV',str(self.dur_ON))
     
     def threadIsFinished(self):
         self.obj.threadON = False
@@ -666,6 +710,7 @@ class olfactometer(QGroupBox):
         except AttributeError as err:
             self.logger.warning('Serial port not open, cannot send parameter: %s', str_send)
 
+    
     
     def updatePort(self, newPort):
         self.port = newPort
