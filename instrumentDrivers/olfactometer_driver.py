@@ -420,10 +420,10 @@ class olfactometer(QGroupBox):
         self.p_vial2_sbox = QComboBox()
         self.p_vial2_sbox.addItems(['A1','A2','B1','B2'])
         self.p_vial2_sbox.setCurrentIndex(1)
-        self.p_spt_edit = QSpinBox(value=50)
+        self.p_spt_edit = QSpinBox(value=50,maximum=200)
         self.p_durON_sbox = QSpinBox(value=defDurOn)
         self.p_durOFF_sbox = QSpinBox(value=defDurOff)
-        self.p_numTimes_sbox = QSpinBox(value=defNumRuns)
+        self.p_numTimes_sbox = QSpinBox(value=defNumRuns,maximum=500)
         self.progSettingsLayout.addRow(QLabel("Vial 1:"),self.p_vial1_sbox)
         self.progSettingsLayout.addRow(QLabel("Vial 2:"),self.p_vial2_sbox)
         self.progSettingsLayout.addRow(QLabel("Setpoint:"),self.p_spt_edit)
@@ -591,6 +591,7 @@ class olfactometer(QGroupBox):
     
     def threadIsFinished(self):
         self.obj.threadON = False
+        self.thread1.quit()
         self.thread1.terminate()
         self.programStartButton.setChecked(False)
         self.programStartButton.setText('Start')
