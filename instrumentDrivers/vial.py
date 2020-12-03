@@ -38,6 +38,7 @@ class Vial(QGroupBox):
 
         if self.mode == 'auto':
             self.mainLayout = QGridLayout()
+            self.mainLayout = QHBoxLayout()
             self.setLayout(self.mainLayout)
 
             self.createVialSettingsBox()
