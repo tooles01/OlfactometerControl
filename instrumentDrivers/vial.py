@@ -37,7 +37,7 @@ class Vial(QGroupBox):
         self.setTitle(title)        
 
         if self.mode == 'auto':
-            self.mainLayout = QGridLayout()
+            #self.mainLayout = QGridLayout()
             self.mainLayout = QHBoxLayout()
             self.setLayout(self.mainLayout)
 
@@ -45,9 +45,9 @@ class Vial(QGroupBox):
             self.createRunSettingsBox()
             self.createDataReceiveBoxes()
 
-            self.mainLayout.addWidget(self.vialSettingsBox,0,0)
-            self.mainLayout.addWidget(self.runSettingsBox,1,0)
-            self.mainLayout.addWidget(self.dataReceiveBox,0,1,2,1)
+            self.mainLayout.addWidget(self.vialSettingsBox)#,0,0)
+            self.mainLayout.addWidget(self.runSettingsBox)#,1,0)
+            self.mainLayout.addWidget(self.dataReceiveBox)#,0,1,2,1)
             #self.resize(self.sizeHint())
         
         if self.mode == 'manual':
