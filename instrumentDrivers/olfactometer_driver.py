@@ -394,6 +394,7 @@ class olfactometer(QGroupBox):
 
         self.slaveScrollArea = QScrollArea()
         self.slaveScrollArea.setWidget(self.allSlavesWid)
+        self.slaveScrollArea.setWidgetResizable(True)
 
         self.slaveBox_layout = QHBoxLayout()
         self.slaveBox_layout.addWidget(self.slaveScrollArea)
