@@ -2,7 +2,6 @@
 # utils for main GUI
 
 import os, logging, glob, math
-import pandas
 from datetime import datetime
 import config
 
@@ -12,20 +11,36 @@ fileHandlerLogLevel = config.fileHandlerLogLevel
 consoleHandlerLogLevel = config.consoleHandlerLogLevel
 
 
-def findLogFolder():
+def findOlfEngGroup():
     # find Dropbox\OlfactometerEngineeringGroup
     dropboxPath = os.path.expanduser('~\\Dropbox')
-    oeg_list = glob.glob(dropboxPath + '/**/*OlfactometerEngineeringGroup',recursive=True)
+    oeg_list = glob.glob(dropboxPath + '/**/*OlfactometerEngineeringGroup*',recursive=True)
     if not oeg_list:
         dropboxPath = os.path.expanduser('~\\Dropbox (NYU Langone Health)')
-        oeg_list = glob.glob(dropboxPath + '/**/*OlfactometerEngineeringGroup',recursive=True)
+        oeg_list = glob.glob(dropboxPath + '/**/*OlfactometerEngineeringGroup*',recursive=True)
     oeg = oeg_list[0]
 
-    # in OlfEngGroup: find logfiles folder
+    oegDirectory = oeg
+
+    return oegDirectory
+
+def findLogFolder():
+    oeg = findOlfEngGroup()
+
     logfiles_list = glob.glob(oeg + '/**/*logfiles',recursive=True)
     logFileDirectory = logfiles_list[0]     # assuming there is only 1 logfiles folder there
 
     return logFileDirectory
+
+def findOlfaConfigFolder():
+    oeg = findOlfEngGroup()
+
+    olfControl_list = glob.glob(oeg + '/**/*OlfactometerControl',recursive=True)
+    olfaConfigDirectory = olfControl_list[0]
+    olfactometerFolder = olfaConfigDirectory + '\olfactometer'
+
+    return olfactometerFolder
+
 
 def createLogger(name):
     # if today folder doesn't exist, make it
@@ -62,22 +77,6 @@ def createLogger(name):
         logger.info('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
     
     return logger
-
-def findOlfaConfigFolder():
-    # find Dropbox\OlfactometerEngineeringGroup
-    dropboxPath = os.path.expanduser('~\\Dropbox')
-    oeg_list = glob.glob(dropboxPath + '/**/*OlfactometerEngineeringGroup',recursive=True)
-    if not oeg_list:
-        dropboxPath = os.path.expanduser('~\\Dropbox (NYU Langone Health)')
-        oeg_list = glob.glob(dropboxPath + '/**/*OlfactometerEngineeringGroup',recursive=True)
-    oeg = oeg_list[0]
-    
-    # in OlfEngGroup: find OlfactometerControl folder
-    olfControl_list = glob.glob(oeg + '/**/*OlfactometerControl',recursive=True)
-    olfaConfigDirectory = olfControl_list[0]
-    olfactometerFolder = olfaConfigDirectory + '\olfactometer'
-
-    return olfactometerFolder
 
 def getArduinoConfigFile(fileName):
     '''
@@ -116,6 +115,7 @@ def getArduinoConfigFile(fileName):
         print("could not read file:", err)
     
     return newDict
+
 
 
 def makeNewFileName(fileType, lastExpNum):
@@ -199,6 +199,7 @@ def writeToFile(vial, param, flow, ctrl):
     strToWrite = timeNow,vial,param,flow,ctrl
     
     return strToWrite
+
 
 '''
 def convToList(numVals, listToConv):
