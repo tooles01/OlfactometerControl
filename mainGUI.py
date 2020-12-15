@@ -107,24 +107,24 @@ class mainGUI(QWidget):
             c_name = i.name
             c_instrument = i.instrument
             self.logger.info('>> Creating channel for %s (%s)',c_instrument,c_name)
-            
             channel_groupbox = channel_stuff.channelGroupBoxObject(c_name,c_instrument)
+            if c_instrument != 'olfactometer':
+                channel_groupbox.instrument_widget.setMaximumHeight(500)
+
             self.c_Rows.append(channel_groupbox)
             self.allChannels_layout.addWidget(channel_groupbox.instrument_widget)
         
-        #self.allChannels_layout.SetMinAndMaxSize
         self.allChannelsWid = QWidget()
         self.allChannelsWid.setLayout(self.allChannels_layout)
         
         self.allChannelsScrollArea = QScrollArea()
         self.allChannelsScrollArea.setWidget(self.allChannelsWid)
-        #self.allChannelsScrollArea.SetMinAndMaxSize
+        self.allChannelsScrollArea.setWidgetResizable(True)
 
         self.cs_layout = QVBoxLayout()
-        self.cs_layout.SetMinAndMaxSize
+        #self.cs_layout.SetMinAndMaxSize
         self.cs_layout.addWidget(self.allChannelsScrollArea)
         self.channelGroupBox.setLayout(self.cs_layout)
-        #self.channelGroupBox.addWidget(self.allChannelsScrollArea)
     
     
     def updateNumChans(self):
