@@ -27,6 +27,7 @@ keysToGet = config.keysToGet
 
 setpointVals = [10,20,30,40,50]
 textEditWidth = 135
+col1Width = 325
 col2Width = 250
 
 # for getting calibration tables 
@@ -178,7 +179,7 @@ class olfactometer(QGroupBox):
         #self.rawWriteSpace.setFixedSize(size)
         #self.rawReadSpace.size(self.rawReadSpace.sizeHint())
         #self.rawWriteSpace.size(self.rawReadSpace.sizeHint())
-        #self.connectBox.setFixedWidth(325)
+        self.connectBox.setFixedWidth(col1Width)
         
         # COLUMN 2
         self.column2Layout = QVBoxLayout()
