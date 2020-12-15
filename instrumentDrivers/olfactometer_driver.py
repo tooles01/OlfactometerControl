@@ -10,11 +10,12 @@ from serial.tools import list_ports
 from instrumentDrivers import slave
 import config, utils
 
+currentDate = utils.currentDate
+
 olfFileLbl = config.olfFileLbl
 dataFileType = config.dataFileType
 delimChar = config.delimChar
 
-currentDate = utils.currentDate
 charsToRead = config.charsToRead
 noPortMsg = config.noPortMsg
 arduinoMasterConfigFile = config.arduinoMasterConfigFile
@@ -22,7 +23,6 @@ arduinoSlaveConfigFile = config.arduinoSlaveConfigFile
 defSensors = config.defSensors
 programTypes = config.programTypes
 testingModes = config.testingModes
-
 keysToGet = config.keysToGet
 
 setpointVals = [10,20,30,40,50]
@@ -42,6 +42,7 @@ defNumRuns = 10
 
 defManualCmd = 'A1_OV_5'
 waitBtSpAndOV = 1
+waitBtSps = 1
 
 class worker(QObject):
     finished = pyqtSignal()
@@ -52,6 +53,8 @@ class worker(QObject):
     w_sendOVnow = pyqtSignal()
     w_sendOV2 = pyqtSignal()
     w_openRandVial = pyqtSignal()
+    w_sendSetpoint1 = pyqtSignal()
+    w_sendSetpoint2 = pyqtSignal()
     
     def __init__(self):
         super().__init__()
@@ -121,11 +124,13 @@ class worker(QObject):
     def exp02(self):
         for i in range(self.numRuns):
             if self.threadON == True:
-                self.w_send2Setpoints.emit()
-                time.sleep(waitBtSpAndOV)
-                self.w_sendOVnow.emit()
-                time.sleep(self.dur_ON)
-                time.sleep(self.dur_OFF-waitBtSpAndOV)
+                self.w_sendSetpoint1.emit();  time.sleep(waitBtSps)
+                self.w_sendSetpoint2.emit();  time.sleep(waitBtSpAndOV)
+                self.w_sendOVnow.emit();    time.sleep(waitBtSpAndOV)
+                self.w_sendOV2.emit()
+
+                time.sleep(self.dur_ON - waitBtSpAndOV) # now the ON time is over
+                time.sleep(self.dur_OFF-waitBtSps-waitBtSpAndOV)
             else:
                 break
         self.finished.emit()
@@ -161,6 +166,18 @@ class olfactometer(QGroupBox):
         
         # COLUMN 1
         self.createConnectBox()
+        size = self.connectBox.sizeHint()
+        cboxWidth = size.width()
+        #boxWidth = size.width()/2 - 20
+        #self.rawReadSpace.setFixedWidth(boxWidth)
+        #self.rawWriteSpace.setFixedWidth(boxWidth)
+
+        #self.rawReadSpace.setFixedWidth(size.width()/2)
+        #size = self.rawReadSpace.sizeHint()
+        #self.rawReadSpace.setFixedSize(size)
+        #self.rawWriteSpace.setFixedSize(size)
+        #self.rawReadSpace.size(self.rawReadSpace.sizeHint())
+        #self.rawWriteSpace.size(self.rawReadSpace.sizeHint())
         #self.connectBox.setFixedWidth(325)
         
         # COLUMN 2
@@ -256,7 +273,7 @@ class olfactometer(QGroupBox):
         readLayout.addWidget(readLbl)
         readLayout.addWidget(self.rawReadDisplay)
         self.rawReadSpace.setLayout(readLayout)
-
+        
         writeLbl = QLabel(text="wrote to serial port:")
         self.rawWriteDisplay = QTextEdit(readOnly=True)
         self.rawWriteSpace = QWidget()
@@ -453,6 +470,9 @@ class olfactometer(QGroupBox):
         self.obj.w_sendOV2.connect(self.sendOVnum2)
         self.obj.w_openRandVial.connect(self.openRandomValve)
         self.obj.finished.connect(self.threadIsFinished)
+
+        self.obj.w_sendSetpoint1.connect(self.sendSetpoint1)
+        self.obj.w_sendSetpoint2.connect(self.sendSetpoint2)
         
     
     def changeProgramSelected(self):
@@ -519,7 +539,7 @@ class olfactometer(QGroupBox):
             self.dictToUse2 = self.sccm2Ard_dicts.get(sensDictName2)
 
             if self.program2run == programTypes[0]:     self.thread1.started.connect(self.obj.exp01a)   # connect thread started to worker slot
-            if self.program2run == programTypes[1]:     self.thread1.started.connect(self.obj.exp01b)
+            if self.program2run == programTypes[1]:     self.thread1.started.connect(self.obj.exp01b)   # 01b
             if self.program2run == programTypes[2]:
                 self.thread1.started.connect(self.obj.exp01c)
                 sccmVal = self.constSpt
@@ -527,7 +547,7 @@ class olfactometer(QGroupBox):
                 ardVal2 = utils.convertToInt(float(sccmVal),self.dictToUse2)
                 self.sendParameter(self.p_slave1,self.p_vial1,'Sp',str(ardVal1))
                 self.sendParameter(self.p_slave2,self.p_vial2,'Sp',str(ardVal2))
-            if self.program2run == programTypes[3]:
+            if self.program2run == programTypes[3]:                                                     # 01d
                 self.thread1.started.connect(self.obj.exp01d)
                 sccmVal = self.constSpt
                 self.dictToUse1 = self.sccm2Ard_dicts.get(self.slaves[0].vials[0].sensDict)
@@ -542,7 +562,7 @@ class olfactometer(QGroupBox):
                 self.sendParameter('A',2,'Sp',str(ardVal2));    time.sleep(.1)
                 self.sendParameter('B',1,'Sp',str(ardVal3));    time.sleep(.1)
                 self.sendParameter('B',2,'Sp',str(ardVal4));    time.sleep(.1)
-            if self.program2run == programTypes[4]:     self.thread1.started.connect(self.obj.exp02)
+            if self.program2run == programTypes[4]:     self.thread1.started.connect(self.obj.exp02)    # 02
             if self.program2run == programTypes[5]:     self.thread1.started.connect(self.obj.exp03)
             
             self.thread1.start()
@@ -564,15 +584,28 @@ class olfactometer(QGroupBox):
         ardVal = utils.convertToInt(float(sccmVal),self.dictToUse1)
         self.sendParameter(self.p_slave1,self.p_vial1,'Sp',str(ardVal))
     
-    def send2Setpoints(self):
-        sccmVal1 = random.randint(1,100)
-        sccmVal2 = 100 - sccmVal1
-        ardVal1 = utils.convertToInt(float(sccmVal1),self.dictToUse1)
-        ardVal2 = utils.convertToInt(float(sccmVal2),self.dictToUse2)
+    
+    def sendSetpoint1(self):
+        sccmVal1 = random.randint(1,10)
+        sccmVal2 = 10 - sccmVal1
+        ardVal1 = utils.convertToInt(float(sccmVal1*10),self.dictToUse1)
+        self.ardVal2 = utils.convertToInt(float(sccmVal2*10),self.dictToUse2)
         self.sendParameter(self.p_slave1,self.p_vial1,'Sp',str(ardVal1))
+        
+    def sendSetpoint2(self):
+        self.sendParameter(self.p_slave2,self.p_vial2,'Sp',str(self.ardVal2))
+
+
+    def send2Setpoints(self):
+        sccmVal1 = random.randint(1,10)
+        sccmVal2 = 10 - sccmVal1
+        ardVal1 = utils.convertToInt(float(sccmVal1*10),self.dictToUse1)
+        ardVal2 = utils.convertToInt(float(sccmVal2*10),self.dictToUse2)
+        self.sendParameter(self.p_slave1,self.p_vial1,'Sp',str(ardVal1))
+        # sleep for a sec
         self.sendParameter(self.p_slave2,self.p_vial2,'Sp',str(ardVal2))
-        self.sendOpenValve()
-        self.sendOpenValve()
+        #self.sendOpenValve()
+        #self.sendOpenValve()
     
     def sendOpenValve(self):
         dur = self.dur_ON
