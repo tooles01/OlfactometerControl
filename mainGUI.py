@@ -6,13 +6,13 @@ from PyQt5.QtWidgets import (QComboBox, QGroupBox, QHBoxLayout, QLabel, QLineEdi
                              QScrollArea, QVBoxLayout, QWidget, QPushButton, QFormLayout, QSpinBox)
 import utils, config, channel_stuff
 from PyQt5.QtCore import QObject
+
 currentDate = utils.currentDate
 users = config.users
-
 datafileLbl = config.datafileLbl
 dataFileType = config.dataFileType
 delimChar = config.delimChar
-col1width = 300
+
 
 class mainGUI(QWidget):
 
@@ -28,16 +28,19 @@ class mainGUI(QWidget):
         self.createMainSettingsBox()
         self.createChannelSettingsBox()
         self.createDataFileBox()
-        self.mainSettingsBox.setFixedWidth(col1width)
-        self.channelSettingsBox.setFixedWidth(col1width)
-        self.dataFileBox.setFixedWidth(col1width)
+        self.createChannelGroupBox()
+        
+        w = max(self.mainSettingsBox.sizeHint().width(),
+                self.channelSettingsBox.sizeHint().width(),
+                self.dataFileBox.sizeHint().width())
+        self.mainSettingsBox.setFixedWidth(w)
+        self.channelSettingsBox.setFixedWidth(w)
+        self.dataFileBox.setFixedWidth(w)
         
         col1 = QVBoxLayout()
         col1.addWidget(self.mainSettingsBox)
         col1.addWidget(self.channelSettingsBox)
         col1.addWidget(self.dataFileBox)
-        
-        self.createChannelGroupBox()
         
         self.mainLayout = QHBoxLayout()
         self.mainLayout.addLayout(col1)
@@ -63,35 +66,31 @@ class mainGUI(QWidget):
     def createChannelSettingsBox(self):
         self.channelSettingsBox = QGroupBox("Channel Settings")
 
-        # number of channels
+        # box1: number of channels
         box1 = QGroupBox()
         numCLbl = QLabel("Number of channels:")
         self.numCBox = QSpinBox(value=self.numChannels,valueChanged=self.updateNumChans)
-        layout1 = QFormLayout()
-        layout1.addRow(numCLbl,self.numCBox)
+        layout1 = QFormLayout();    layout1.addRow(numCLbl,self.numCBox)
         box1.setLayout(layout1)
         
-        # channel info
+        # box2: channel info
         box2 = QGroupBox()
-        recLbl = QLabel(text="Record")
-        instLbl = QLabel(text="Instrument:")
-        chanLbl = QLabel(text="Name:")
         lblRow = QHBoxLayout()
-        lblRow.addWidget(recLbl)
-        lblRow.addWidget(instLbl)
-        lblRow.addWidget(chanLbl)
+        recLbl = QLabel(text="Record");         lblRow.addWidget(recLbl)
+        instLbl = QLabel(text="Instrument:");   lblRow.addWidget(instLbl)
+        chanLbl = QLabel(text="Name:");         lblRow.addWidget(chanLbl)
         self.layout2 = QVBoxLayout()
         self.layout2.addLayout(lblRow)
         self.rows = []      # rows is here so we can save things ppl entered previously
         for r in range(self.numChannels):
             c = self.channels[r]
-            row = QWidget()
-            row.setLayout(c.hLayout)
+            row = QWidget();    row.setLayout(c.hLayout)
             self.rows.append(row)
             self.layout2.addWidget(row)
         box2.setLayout(self.layout2)
         
         self.channelUpdateBtn = QPushButton(text="Update",clicked=self.updateChannels,toolTip='Update display')
+
         layout = QVBoxLayout()
         layout.addWidget(box1)
         layout.addWidget(box2)
@@ -212,7 +211,7 @@ class mainGUI(QWidget):
             lastFile = dataFiles[len(dataFiles)-1]
             i_fExt = lastFile.rfind('.')
             lastFile = lastFile[:i_fExt]    # remove file extension
-            i_us = lastFile.rfind('_')      # find last underscore            
+            i_us = lastFile.rfind('_')      # find last underscore
             lastFilePosNum = lastFile[i_us+1:]
             if lastFilePosNum.isnumeric():  # if what's after the underscore is a number
                 self.lastFileNum = int(lastFilePosNum)
@@ -234,8 +233,6 @@ class mainGUI(QWidget):
         fileLayout.addWidget(fileNameLbl)
         fileLayout.addWidget(self.enterFileName)
         self.recordButton = QPushButton(text="Create && Start Recording",checkable=True,clicked=self.clicked_record)
-        #hint = self.recordButton.sizeHint()
-        #self.recordButton.setFixedSize(hint)
         self.endRecordButton = QPushButton(text="End Recording",clicked=self.clicked_endRecord)
         self.dataFileOutputBox = QTextEdit(readOnly=True)
 

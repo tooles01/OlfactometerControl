@@ -122,6 +122,7 @@ class channelDialog(QDialog):
         self.accept()
 
 
+
 class channelGroupBoxObject(QGroupBox):
 
     def __init__(self, name="", instrument=""):
