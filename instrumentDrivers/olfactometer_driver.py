@@ -42,15 +42,16 @@ defDurOff = 5
 defNumRuns = 10
 
 defManualCmd = 'A1_OV_5'
-waitBtSpAndOV = 1
+waitBtSpAndOV = .5
 waitBtSps = 1
 
 class worker(QObject):
     finished = pyqtSignal()
-    w_sendNewParam = pyqtSignal(str,int,str,str)
+    #w_sendNewParam = pyqtSignal(str,int,str,str)
+    w_sendThisSp = pyqtSignal(int)
     w_sendSetpoint = pyqtSignal()
     w_sendRandSetpoint = pyqtSignal()
-    w_send2Setpoints = pyqtSignal()
+    #w_send2Setpoints = pyqtSignal()
     w_sendOVnow = pyqtSignal()
     w_sendOV2 = pyqtSignal()
     w_openRandVial = pyqtSignal()
@@ -64,6 +65,25 @@ class worker(QObject):
         self.numRuns = 0
         self.threadON = False
     
+    @pyqtSlot()
+    def exp01(self):
+        maxsp = 100
+        incr = 10
+        spt = 10
+        for j in range((maxsp-spt)/incr):
+            for i in range(self.numRuns):
+                if self.threadON == True:
+                    self.w_sendThisSp.emit(spt)
+                    time.sleep(waitBtSpAndOV)
+                    self.w_sendOVnow.emit()
+                    time.sleep(self.dur_ON)
+                    time.sleep(self.dur_OFF-waitBtSpAndOV)
+                else:
+                    break
+            spt=spt+incr
+        self.finished.emit()
+        self.threadON = False
+
     @pyqtSlot()
     def exp01a(self):
         for i in range(self.numRuns):
@@ -421,6 +441,22 @@ class olfactometer(QGroupBox):
 
     
     # VIAL PROGRAMMING
+    def setUpThreads(self):
+        self.obj = worker()
+        self.thread1 = QThread()
+        self.obj.moveToThread(self.thread1)
+        #self.obj.w_sendNewParam.connect(self.sendParameter)
+        self.obj.w_sendSetpoint.connect(self.sendSetpoint)
+        self.obj.w_sendRandSetpoint.connect(self.sendRandomSetpoint)
+        #self.obj.w_send2Setpoints.connect(self.send2Setpoints)
+        self.obj.w_sendOVnow.connect(self.sendOpenValve)
+        self.obj.w_sendOV2.connect(self.sendOVnum2)
+        self.obj.w_openRandVial.connect(self.openRandomValve)
+        self.obj.finished.connect(self.threadIsFinished)
+
+        self.obj.w_sendSetpoint1.connect(self.sendSetpoint1)
+        self.obj.w_sendSetpoint2.connect(self.sendSetpoint2)
+    
     def createVialProgrammingBox(self):
         self.vialProgrammingBox = QGroupBox("Vial Programming")
 
@@ -459,48 +495,36 @@ class olfactometer(QGroupBox):
         layout.addRow(self.programStartButton)
         self.vialProgrammingBox.setLayout(layout)
     
-    def setUpThreads(self):
-        self.obj = worker()
-        self.thread1 = QThread()
-        self.obj.moveToThread(self.thread1)
-        self.obj.w_sendNewParam.connect(self.sendParameter)
-        self.obj.w_sendSetpoint.connect(self.sendSetpoint)
-        self.obj.w_sendRandSetpoint.connect(self.sendRandomSetpoint)
-        self.obj.w_send2Setpoints.connect(self.send2Setpoints)
-        self.obj.w_sendOVnow.connect(self.sendOpenValve)
-        self.obj.w_sendOV2.connect(self.sendOVnum2)
-        self.obj.w_openRandVial.connect(self.openRandomValve)
-        self.obj.finished.connect(self.threadIsFinished)
-
-        self.obj.w_sendSetpoint1.connect(self.sendSetpoint1)
-        self.obj.w_sendSetpoint2.connect(self.sendSetpoint2)
         
-    
     def changeProgramSelected(self):
         newProgSelected = self.programSelectCb.currentText()
         self.progSelected = newProgSelected
 
-        if self.progSelected == programTypes[0]:    # exp01a
-            self.p_vial1_sbox.setEnabled(True)
-            self.p_vial2_sbox.setEnabled(False)
-            self.p_spt_edit.setEnabled(True)
-        if self.progSelected == programTypes[1]:    # exp01b
+        if self.progSelected == programTypes[0]:    # exp01
             self.p_vial1_sbox.setEnabled(True)
             self.p_vial2_sbox.setEnabled(False)
             self.p_spt_edit.setEnabled(False)
-        if self.progSelected == programTypes[2]:    # exp01c
+        if self.progSelected == programTypes[1]:    # exp01a
+            self.p_vial1_sbox.setEnabled(True)
+            self.p_vial2_sbox.setEnabled(False)
+            self.p_spt_edit.setEnabled(True)
+        if self.progSelected == programTypes[2]:    # exp01b
+            self.p_vial1_sbox.setEnabled(True)
+            self.p_vial2_sbox.setEnabled(False)
+            self.p_spt_edit.setEnabled(False)
+        if self.progSelected == programTypes[3]:    # exp01c
             self.p_vial1_sbox.setEnabled(True)
             self.p_vial2_sbox.setEnabled(True)
             self.p_spt_edit.setEnabled(True)
-        if self.progSelected == programTypes[3]:    # exp01d
+        if self.progSelected == programTypes[4]:    # exp01d
             self.p_vial1_sbox.setEnabled(False)
             self.p_vial2_sbox.setEnabled(False)
             self.p_spt_edit.setEnabled(True)
-        if self.progSelected == programTypes[4]:    # exp02
+        if self.progSelected == programTypes[5]:    # exp02
             self.p_vial1_sbox.setEnabled(True)
             self.p_vial2_sbox.setEnabled(True)
             self.p_spt_edit.setEnabled(False)
-        if self.progSelected == programTypes[5]:    # exp03
+        if self.progSelected == programTypes[6]:    # exp03
             self.p_vial1_sbox.setEnabled(True)
             self.p_vial2_sbox.setEnabled(False)
             self.p_spt_edit.setEnabled(True)
@@ -540,15 +564,16 @@ class olfactometer(QGroupBox):
             self.dictToUse2 = self.sccm2Ard_dicts.get(sensDictName2)
 
             if self.program2run == programTypes[0]:     self.thread1.started.connect(self.obj.exp01a)   # connect thread started to worker slot
-            if self.program2run == programTypes[1]:     self.thread1.started.connect(self.obj.exp01b)   # 01b
-            if self.program2run == programTypes[2]:
+            if self.program2run == programTypes[1]:     self.thread1.started.connect(self.obj.exp01a)   # 01a
+            if self.program2run == programTypes[2]:     self.thread1.started.connect(self.obj.exp01b)   # 01b
+            if self.program2run == programTypes[3]:
                 self.thread1.started.connect(self.obj.exp01c)
                 sccmVal = self.constSpt
                 ardVal1 = utils.convertToInt(float(sccmVal),self.dictToUse1)
                 ardVal2 = utils.convertToInt(float(sccmVal),self.dictToUse2)
                 self.sendParameter(self.p_slave1,self.p_vial1,'Sp',str(ardVal1))
                 self.sendParameter(self.p_slave2,self.p_vial2,'Sp',str(ardVal2))
-            if self.program2run == programTypes[3]:                                                     # 01d
+            if self.program2run == programTypes[4]:                                                     # 01d
                 self.thread1.started.connect(self.obj.exp01d)
                 sccmVal = self.constSpt
                 self.dictToUse1 = self.sccm2Ard_dicts.get(self.slaves[0].vials[0].sensDict)
@@ -563,8 +588,8 @@ class olfactometer(QGroupBox):
                 self.sendParameter('A',2,'Sp',str(ardVal2));    time.sleep(.1)
                 self.sendParameter('B',1,'Sp',str(ardVal3));    time.sleep(.1)
                 self.sendParameter('B',2,'Sp',str(ardVal4));    time.sleep(.1)
-            if self.program2run == programTypes[4]:     self.thread1.started.connect(self.obj.exp02)    # 02
-            if self.program2run == programTypes[5]:     self.thread1.started.connect(self.obj.exp03)
+            if self.program2run == programTypes[5]:     self.thread1.started.connect(self.obj.exp02)    # 02
+            if self.program2run == programTypes[6]:     self.thread1.started.connect(self.obj.exp03)
             
             self.thread1.start()
             self.obj.threadON = True
@@ -585,7 +610,11 @@ class olfactometer(QGroupBox):
         ardVal = utils.convertToInt(float(sccmVal),self.dictToUse1)
         self.sendParameter(self.p_slave1,self.p_vial1,'Sp',str(ardVal))
     
-    
+    def sendThisSp(self,sp):
+        sccmVal = sp
+        ardVal = utils.convertToInt(float(sccmVal),self.dictToUse1)
+        self.sendParameter(self.p_slave1,self.p_vial1,'Sp',str(ardVal))
+
     def sendSetpoint1(self):
         sccmVal1 = random.randint(1,10)
         sccmVal2 = 10 - sccmVal1
@@ -595,7 +624,6 @@ class olfactometer(QGroupBox):
         
     def sendSetpoint2(self):
         self.sendParameter(self.p_slave2,self.p_vial2,'Sp',str(self.ardVal2))
-
 
     def send2Setpoints(self):
         sccmVal1 = random.randint(1,10)
