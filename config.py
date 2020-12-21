@@ -35,7 +35,8 @@ arduinoMasterConfigFile = 'config_master.h'
 arduinoSlaveConfigFile = 'config_slave.h'
 testingModes = ['auto','manual']
 charsToRead = 16
-programTypes = ['exp01a (1 vial, repeat spt)',
+programTypes = ['exp01 (1 vial, all setpoints)',
+                'exp01a (1 vial, repeat spt)',
                 'exp01b (1 vial, random spts 0-100)',
                 'exp01c (const spt, 2 vials back and forth)',
                 'exp01d (const spt, random vials)',

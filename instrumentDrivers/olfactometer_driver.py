@@ -37,9 +37,9 @@ sccmRow = 0
 ardRow = 2
 
 # for exp01b
-defDurOn = 5
-defDurOff = 5
-defNumRuns = 10
+defDurOn = 2
+defDurOff = 2
+defNumRuns = 2
 
 defManualCmd = 'A1_OV_5'
 waitBtSpAndOV = .5
@@ -70,7 +70,7 @@ class worker(QObject):
         maxsp = 100
         incr = 10
         spt = 10
-        for j in range((maxsp-spt)/incr):
+        for j in range(int((maxsp-spt)/incr)):
             for i in range(self.numRuns):
                 if self.threadON == True:
                     self.w_sendThisSp.emit(spt)
@@ -446,6 +446,7 @@ class olfactometer(QGroupBox):
         self.thread1 = QThread()
         self.obj.moveToThread(self.thread1)
         #self.obj.w_sendNewParam.connect(self.sendParameter)
+        self.obj.w_sendThisSp.connect(self.sendThisSp)
         self.obj.w_sendSetpoint.connect(self.sendSetpoint)
         self.obj.w_sendRandSetpoint.connect(self.sendRandomSetpoint)
         #self.obj.w_send2Setpoints.connect(self.send2Setpoints)
@@ -563,7 +564,7 @@ class olfactometer(QGroupBox):
             sensDictName2 = self.slaves[s_index2].vials[v_index2].sensDict
             self.dictToUse2 = self.sccm2Ard_dicts.get(sensDictName2)
 
-            if self.program2run == programTypes[0]:     self.thread1.started.connect(self.obj.exp01a)   # connect thread started to worker slot
+            if self.program2run == programTypes[0]:     self.thread1.started.connect(self.obj.exp01)   # connect thread started to worker slot
             if self.program2run == programTypes[1]:     self.thread1.started.connect(self.obj.exp01a)   # 01a
             if self.program2run == programTypes[2]:     self.thread1.started.connect(self.obj.exp01b)   # 01b
             if self.program2run == programTypes[3]:
