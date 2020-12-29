@@ -105,7 +105,7 @@ class mainGUI(QWidget):
         for i in self.channels:
             c_name = i.name
             c_instrument = i.instrument
-            self.logger.info('>> Creating channel for %s (%s)',c_instrument,c_name)
+            self.logger.debug('>> Creating channel for %s (%s)',c_instrument,c_name)
             channel_groupbox = channel_stuff.channelGroupBoxObject(c_name,c_instrument)
             if c_instrument != 'olfactometer':
                 channel_groupbox.instrument_widget.setMaximumHeight(500)
