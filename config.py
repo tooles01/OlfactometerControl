@@ -6,7 +6,7 @@ import logging
 
 
 currentDate = str(datetime.date(datetime.now()))
-logFileName = 'logFile_delete.txt'
+logFileName = 'logFile.txt'
 
 
 # LOGGING
@@ -41,7 +41,8 @@ programTypes = ['exp01 (1 vial, all setpoints)',
                 'exp01c (const spt, 2 vials back and forth)',
                 'exp01d (const spt, random vials)',
                 'exp02 (2 vials, random spts: total=x)',
-                'exp03 (reproduce)']
+                'exp03 (reproduce)',
+                'exp04 (4 vials, random spts)']
 defVlval = 5
 sensorTypes = ["Honeywell 3100V", "Honeywell 3300V", "Honeywell 5101V"]
 keysToGet = ['defKp','defKi','defKd','defSp']
