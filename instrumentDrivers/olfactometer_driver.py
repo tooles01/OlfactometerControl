@@ -559,19 +559,13 @@ class olfactometer(QGroupBox):
             self.vialToRun2 = self.p_vial2_sbox.currentText()
             self.constSpt = self.p_spt_edit.value()
             self.dur_ON = self.p_durON_sbox.value()
-            #self.dur_OFF = self.p_durOFF_sbox.value()
-            #self.numRuns = self.p_numTimes_sbox.value()
             
             self.obj.dur_ON = self.dur_ON   # give worker all the values
             self.obj.dur_OFF = self.p_durOFF_sbox.value()
             self.obj.numRuns = self.p_numTimes_sbox.value()
             self.obj.setpoint = self.constSpt
-            
-            #self.p_slave1 = self.vialToRun1[0]
-            #self.p_vial1 = int(self.vialToRun1[1])
-            #self.p_slave2 = self.vialToRun2[0]
-            #self.p_vial2 = int(self.vialToRun2[1])
-            
+
+
             if self.program2run == programTypes[0] or self.program2run == programTypes[1] or self.program2run == programTypes[2]:
                 self.obj.slave1 = self.vialToRun1[0]
                 self.obj.vial1 = int(self.vialToRun1[1])
@@ -583,6 +577,8 @@ class olfactometer(QGroupBox):
             else:
                 self.obj.slave1 = 'A'
                 self.obj.vial1 = 1
+                self.obj.slave2 = 'A'
+                self.obj.vial2 = 2
 
             if self.program2run == programTypes[0]:     self.thread1.started.connect(self.obj.exp01)    # connect thread started to worker slot
             if self.program2run == programTypes[1]:     self.thread1.started.connect(self.obj.exp01a)   # 01a
@@ -592,11 +588,10 @@ class olfactometer(QGroupBox):
             
             if self.program2run == programTypes[4]:     self.thread1.started.connect(self.obj.exp04)    # 04
             if self.program2run == programTypes[5]:     self.thread1.started.connect(self.obj.exp04a)   # 04a
-            if self.program2run == programTypes[6]:     self.thread1.started.connect(self.obj.exp04b)    # 04b
+            if self.program2run == programTypes[6]:     self.thread1.started.connect(self.obj.exp04b)   # 04b
             
             self.thread1.start()
             self.obj.threadON = True
-
             self.logger.info('Starting program: %s',self.program2run)
             
         else:
