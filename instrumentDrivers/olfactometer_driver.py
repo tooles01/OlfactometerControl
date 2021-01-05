@@ -553,46 +553,40 @@ class olfactometer(QGroupBox):
                 self.logger.warning('not recording to file')
             self.programStartButton.setText('Stop')
             self.progSettingsBox.setEnabled(False)
-            self.program2run = self.programSelectCb.currentText()
+            program2run = self.programSelectCb.currentText()
             
-            self.vialToRun1 = self.p_vial1_sbox.currentText() # get everything from the GUI
-            self.vialToRun2 = self.p_vial2_sbox.currentText()
-            self.constSpt = self.p_spt_edit.value()
+            vialToRun1 = self.p_vial1_sbox.currentText() # get everything from the GUI
+            vialToRun2 = self.p_vial2_sbox.currentText()
+            constSpt = self.p_spt_edit.value()
             self.dur_ON = self.p_durON_sbox.value()
             
             self.obj.dur_ON = self.dur_ON   # give worker all the values
             self.obj.dur_OFF = self.p_durOFF_sbox.value()
             self.obj.numRuns = self.p_numTimes_sbox.value()
-            self.obj.setpoint = self.constSpt
+            self.obj.setpoint = constSpt
 
-
-            if self.program2run == programTypes[0] or self.program2run == programTypes[1] or self.program2run == programTypes[2]:
-                self.obj.slave1 = self.vialToRun1[0]
-                self.obj.vial1 = int(self.vialToRun1[1])
-            elif self.program2run == programTypes[3]:
-                self.obj.slave1 = self.vialToRun1[0]
-                self.obj.vial1 = int(self.vialToRun1[1])
-                self.obj.slave2 = self.vialToRun2[0]
-                self.obj.vial2 = int(self.vialToRun2[1])
+            if program2run == programTypes[0] or program2run == programTypes[1] or program2run == programTypes[2]:
+                self.obj.slave1 = vialToRun1[0];   self.obj.vial1 = int(vialToRun1[1])
+            elif program2run == programTypes[3]:
+                self.obj.slave1 = vialToRun1[0];   self.obj.vial1 = int(vialToRun1[1])
+                self.obj.slave2 = vialToRun2[0];   self.obj.vial2 = int(vialToRun2[1])
             else:
-                self.obj.slave1 = 'A'
-                self.obj.vial1 = 1
-                self.obj.slave2 = 'A'
-                self.obj.vial2 = 2
+                self.obj.slave1 = 'A';  self.obj.vial1 = 1
+                self.obj.slave2 = 'A';  self.obj.vial2 = 2
 
-            if self.program2run == programTypes[0]:     self.thread1.started.connect(self.obj.exp01)    # connect thread started to worker slot
-            if self.program2run == programTypes[1]:     self.thread1.started.connect(self.obj.exp01a)   # 01a
-            if self.program2run == programTypes[2]:     self.thread1.started.connect(self.obj.exp01b)   # 01b
+            if program2run == programTypes[0]:     self.thread1.started.connect(self.obj.exp01)    # connect thread started to worker slot
+            if program2run == programTypes[1]:     self.thread1.started.connect(self.obj.exp01a)   # 01a
+            if program2run == programTypes[2]:     self.thread1.started.connect(self.obj.exp01b)   # 01b
             
-            if self.program2run == programTypes[3]:     self.thread1.started.connect(self.obj.exp02)    # 02
+            if program2run == programTypes[3]:     self.thread1.started.connect(self.obj.exp02)    # 02
             
-            if self.program2run == programTypes[4]:     self.thread1.started.connect(self.obj.exp04)    # 04
-            if self.program2run == programTypes[5]:     self.thread1.started.connect(self.obj.exp04a)   # 04a
-            if self.program2run == programTypes[6]:     self.thread1.started.connect(self.obj.exp04b)   # 04b
+            if program2run == programTypes[4]:     self.thread1.started.connect(self.obj.exp04)    # 04
+            if program2run == programTypes[5]:     self.thread1.started.connect(self.obj.exp04a)   # 04a
+            if program2run == programTypes[6]:     self.thread1.started.connect(self.obj.exp04b)   # 04b
             
             self.thread1.start()
             self.obj.threadON = True
-            self.logger.info('Starting program: %s',self.program2run)
+            self.logger.info('Starting program: %s',program2run)
             
         else:
             self.progSettingsBox.setEnabled(True)
@@ -625,8 +619,6 @@ class olfactometer(QGroupBox):
         self.progSettingsBox.setEnabled(True)
         self.logger.info('Finished program, quit thread')
         self.setUpThreads()
-
-    
 
 
     '''
