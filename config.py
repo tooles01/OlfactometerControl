@@ -6,7 +6,7 @@ import logging
 
 
 currentDate = str(datetime.date(datetime.now()))
-logFileName = 'logFile.txt'
+logFileName = 'logFile_delete.txt'
 
 
 # LOGGING
@@ -35,14 +35,23 @@ arduinoMasterConfigFile = 'config_master.h'
 arduinoSlaveConfigFile = 'config_slave.h'
 testingModes = ['auto','manual']
 charsToRead = 16
+'''
 programTypes = ['exp01 (1 vial, all setpoints)',
-                'exp01a (1 vial, repeat spt)',
+                'exp01a (1 vial, 1 setpoint)',
                 'exp01b (1 vial, random spts 0-100)',
                 'exp01c (const spt, 2 vials back and forth)',
                 'exp01d (const spt, random vials)',
                 'exp02 (2 vials, random spts: total=x)',
                 'exp03 (reproduce)',
                 'exp04 (4 vials, random spts)']
+'''
+programTypes = ['exp01 (1 vial, all setpoints)',
+                'exp01a (1 vial, 1 setpoint)',
+                'exp01b (1 vial, random spts 0-100)',
+                'exp02 (2 vials, random spts: total=100)',
+                'exp04 (4 vials, all setpoints, open sequentially)',
+                'exp04a (4 vials, 1 setpoint, open randomly)',
+                'exp04b (4 vials, random spts, open randomly)',]
 defVlval = 5
 sensorTypes = ["Honeywell 3100V", "Honeywell 3300V", "Honeywell 5101V"]
 keysToGet = ['defKp','defKi','defKd','defSp']

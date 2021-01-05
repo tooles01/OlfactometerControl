@@ -47,21 +47,17 @@ waitBtSps = 1
 
 class worker(QObject):
     finished = pyqtSignal()
-    #w_sendNewParam = pyqtSignal(str,int,str,str)
-    w_sendThisSp = pyqtSignal(int)
-    w_sendSetpoint_vial1 = pyqtSignal()
-    w_sendRandomSetpoint_vial1 = pyqtSignal()
-    #w_send2Setpoints = pyqtSignal()
-    w_sendOpenValve_vial1 = pyqtSignal()
-    w_sendOpenValve_vial2 = pyqtSignal()
-    w_sendOpenValve_random = pyqtSignal()
-    w_sendRandomSetpoint1 = pyqtSignal()
-    w_sendRandomSetpoint2 = pyqtSignal()
-    w_sendSetpoint_random = pyqtSignal()
-    w_openRandomValve = pyqtSignal()
+    w_sendThisSp = pyqtSignal(str,int,int)
+    w_send_OpenValve = pyqtSignal(str,int)
     
     def __init__(self):
         super().__init__()
+        self.slave1 = 'A';  self.vial1 = 1
+        self.slave2 = 'A';  self.vial2 = 2
+        self.slave3 = 'B';  self.vial3 = 1
+        self.slave4 = 'B';  self.vial4 = 2
+        self.setpoint = 0
+
         self.dur_ON = 0
         self.dur_OFF = 0
         self.numRuns = 0
@@ -71,28 +67,28 @@ class worker(QObject):
     def exp01(self):
         maxsp = 100
         incr = 10
-        spt = 10
-        for j in range(int((maxsp-spt)/incr)):
+        sccmVal = 10
+        for j in range(int((maxsp-sccmVal)/incr)):
             for i in range(self.numRuns):
                 if self.threadON == True:
-                    self.w_sendThisSp.emit(spt)
+                    self.w_sendThisSp.emit(self.slave1,self.vial1,sccmVal)
                     time.sleep(waitBtSpAndOV)
-                    self.w_sendOpenValve_vial1.emit()
+                    self.w_send_OpenValve.emit(self.slave1,self.vial1)
                     time.sleep(self.dur_ON)
                     time.sleep(self.dur_OFF-waitBtSpAndOV)
                 else:
                     break
-            spt=spt+incr
+            sccmVal=sccmVal+incr
         self.finished.emit()
         self.threadON = False
 
     @pyqtSlot()
     def exp01a(self):
+        self.w_sendThisSp.emit(self.slave1,self.vial1,self.setpoint)
+        time.sleep(waitBtSpAndOV)
         for i in range(self.numRuns):
             if self.threadON == True:
-                self.w_sendSetpoint_vial1.emit()
-                time.sleep(waitBtSpAndOV)
-                self.w_sendOpenValve_vial1.emit()
+                self.w_send_OpenValve.emit(self.slave1,self.vial1)
                 time.sleep(self.dur_ON)
                 time.sleep(self.dur_OFF-waitBtSpAndOV)
             else:
@@ -104,9 +100,10 @@ class worker(QObject):
     def exp01b(self):
         for i in range(self.numRuns):
             if self.threadON == True:
-                self.w_sendRandomSetpoint_vial1.emit()
+                sccmVal = random.randint(1,100)
+                self.w_sendThisSp.emit(self.slave1,self.vial1,sccmVal)
                 time.sleep(waitBtSpAndOV)
-                self.w_sendOpenValve_vial1.emit()
+                self.w_send_OpenValve.emit(self.slave1,self.vial1)
                 time.sleep(self.dur_ON)
                 time.sleep(self.dur_OFF-waitBtSpAndOV)
             else:
@@ -114,75 +111,78 @@ class worker(QObject):
         self.finished.emit()
         self.threadON = False
 
-    @pyqtSlot()
-    def exp01c(self):
-        time.sleep(waitBtSpAndOV)
-        for i in range(self.numRuns):
-            if self.threadON == True:
-                self.w_sendOpenValve_vial1.emit()
-                time.sleep(self.dur_ON)
-                time.sleep(self.dur_OFF)
-                self.w_sendOpenValve_vial2.emit()
-                time.sleep(self.dur_ON)
-                time.sleep(self.dur_OFF)
-            else:
-                break
-        self.finished.emit()
-        self.threadON = False
-
-    @pyqtSlot()
-    def exp01d(self):
-        time.sleep(waitBtSpAndOV)
-        for i in range(self.numRuns):
-            if self.threadON == True:
-                self.w_sendOpenValve_random.emit()
-                time.sleep(self.dur_ON)
-                time.sleep(self.dur_OFF)
-            else:
-                break
-        self.finished.emit()
-        self.threadON = False
-                    
+                       
     @pyqtSlot()
     def exp02(self):
         for i in range(self.numRuns):
             if self.threadON == True:
-                self.w_sendRandomSetpoint1.emit();  time.sleep(waitBtSps)
-                self.w_sendRandomSetpoint2.emit();  time.sleep(waitBtSpAndOV)
-                self.w_sendOpenValve_vial1.emit();    time.sleep(waitBtSpAndOV)
-                self.w_sendOpenValve_vial2.emit()
-
-                time.sleep(self.dur_ON - waitBtSpAndOV) # now the ON time is over
+                sccmVal1 = random.randint(1,10)
+                sccmVal2 = 10 - sccmVal1
+                self.w_sendThisSp.emit(self.slave1,self.vial1,sccmVal1);     time.sleep(waitBtSps)
+                self.w_sendThisSp.emit(self.slave2,self.vial2,sccmVal2);     time.sleep(waitBtSpAndOV)
+                self.w_send_OpenValve.emit(self.slave1,self.vial1);         time.sleep(waitBtSpAndOV)
+                self.w_send_OpenValve.emit(self.slave2,self.vial2);         time.sleep(self.dur_ON - waitBtSpAndOV) # now the ON time is over
                 time.sleep(self.dur_OFF-waitBtSps-waitBtSpAndOV)
             else:
                 break
         self.finished.emit()
         self.threadON = False
 
-    @pyqtSlot()
-    def exp03(self):
-        for i in range(self.numRuns):
-            self.sendRandSetpoint.emit()
-            time.sleep(waitBtSpAndOV)
-            if self.threadOn == True:
-                self.sendOVnow.emit()
-                time.sleep(self.dur_ON)
-                time.sleep(self.dur_OFF)
 
     @pyqtSlot()
     def exp04(self):
+        maxsp = 200
+        incr = 10
+        sccmVal = 10
+        for j in range(int((maxsp-sccmVal)/incr)):
+            for i in range(self.numRuns):
+                if self.threadON == True:
+                    self.w_sendThisSp.emit(self.slave1,self.vial1,sccmVal); time.sleep(waitBtSpAndOV);  self.w_send_OpenValve.emit(self.slave1,self.vial1); time.sleep(self.dur_ON + self.dur_OFF)
+                    self.w_sendThisSp.emit(self.slave2,self.vial2,sccmVal); time.sleep(waitBtSpAndOV);  self.w_send_OpenValve.emit(self.slave2,self.vial2); time.sleep(self.dur_ON + self.dur_OFF)
+                    self.w_sendThisSp.emit(self.slave3,self.vial3,sccmVal); time.sleep(waitBtSpAndOV);  self.w_send_OpenValve.emit(self.slave3,self.vial3); time.sleep(self.dur_ON + self.dur_OFF)
+                    self.w_sendThisSp.emit(self.slave4,self.vial4,sccmVal); time.sleep(waitBtSpAndOV);  self.w_send_OpenValve.emit(self.slave4,self.vial4); time.sleep(self.dur_ON + self.dur_OFF)
+                else:
+                    break
+            sccmVal=sccmVal+incr
+        self.finished.emit()
+        self.threadON = False
+    
+    @pyqtSlot()
+    def exp04a(self):
+        self.w_sendThisSp.emit(self.slave1,self.vial1,self.setpoint);   time.sleep(.1)
+        self.w_sendThisSp.emit(self.slave2,self.vial2,self.setpoint);   time.sleep(.1)
+        self.w_sendThisSp.emit(self.slave3,self.vial3,self.setpoint);   time.sleep(.1)
+        self.w_sendThisSp.emit(self.slave4,self.vial4,self.setpoint);   time.sleep(.1)
+        time.sleep(waitBtSpAndOV)
         for i in range(self.numRuns):
             if self.threadON == True:
-                self.w_sendSetpoint_random.emit()
-                time.sleep(waitBtSpAndOV)
-                self.w_openRandomValve.emit()
-                time.sleep(self.dur_ON)
-                time.sleep(self.dur_OFF-waitBtSpAndOV)
+                thisSlave = random.randint(1,2)
+                if thisSlave == 1: slave = 'A'
+                if thisSlave == 2: slave = 'B'
+                thisVial = random.randint(1,2)
+                self.w_send_OpenValve.emit(slave,thisVial)
+                time.sleep(self.dur_ON + self.dur_OFF)
             else:
                 break
         self.finished.emit()
         self.threadON = False
-                
+
+    @pyqtSlot()
+    def exp04b(self):
+        for i in range(self.numRuns):
+            if self.threadON == True:
+                sccmVal = random.randint(1,100)
+                thisSlave = random.randint(1,2)
+                if thisSlave == 1: slave = 'A'
+                if thisSlave == 2: slave = 'B'
+                thisVial = random.randint(1,2)
+                self.w_sendThisSp.emit(slave,thisVial,sccmVal); time.sleep(waitBtSpAndOV)
+                self.w_send_OpenValve.emit(slave,thisVial);     time.sleep(self.dur_ON + self.dur_OFF)
+            else:
+                break
+        self.finished.emit()
+        self.threadON = False
+    
 
 class olfactometer(QGroupBox):
 
@@ -469,18 +469,8 @@ class olfactometer(QGroupBox):
         
         #self.obj.w_sendNewParam.connect(self.sendParameter)
         self.obj.w_sendThisSp.connect(self.sendThisSetpoint)
-        self.obj.w_sendSetpoint_vial1.connect(self.sendSetpoint_vial1)
-        self.obj.w_sendRandomSetpoint_vial1.connect(self.sendRandomSetpoint_vial1)
-        #self.obj.w_send2Setpoints.connect(self.send2Setpoints)
-        self.obj.w_sendOpenValve_vial1.connect(self.sendOpenValve_vial1)
-        self.obj.w_sendOpenValve_vial2.connect(self.sendOpenValve_vial2)
-        self.obj.w_sendOpenValve_random.connect(self.sendOpenValve_random)
-        self.obj.w_sendSetpoint_random.connect(self.sendSetpoint_random)
-        self.obj.w_openRandomValve.connect(self.openRandomValve)
+        self.obj.w_send_OpenValve.connect(self.send_OpenValve)
         self.obj.finished.connect(self.threadIsFinished)
-        
-        self.obj.w_sendRandomSetpoint1.connect(self.sendRandomSetpoint1)
-        self.obj.w_sendRandomSetpoint2.connect(self.sendRandomSetpoint2)
     
     def createVialProgrammingBox(self):
         self.vialProgrammingBox = QGroupBox("Vial Programming")
@@ -537,89 +527,72 @@ class olfactometer(QGroupBox):
             self.p_vial1_sbox.setEnabled(True)
             self.p_vial2_sbox.setEnabled(False)
             self.p_spt_edit.setEnabled(False)
-        if self.progSelected == programTypes[3]:    # exp01c
-            self.p_vial1_sbox.setEnabled(True)
-            self.p_vial2_sbox.setEnabled(True)
-            self.p_spt_edit.setEnabled(True)
-        if self.progSelected == programTypes[4]:    # exp01d
-            self.p_vial1_sbox.setEnabled(False)
-            self.p_vial2_sbox.setEnabled(False)
-            self.p_spt_edit.setEnabled(True)
-        if self.progSelected == programTypes[5]:    # exp02
+        
+        if self.progSelected == programTypes[3]:    # exp02
             self.p_vial1_sbox.setEnabled(True)
             self.p_vial2_sbox.setEnabled(True)
             self.p_spt_edit.setEnabled(False)
-        if self.progSelected == programTypes[6]:    # exp03
-            self.p_vial1_sbox.setEnabled(True)
-            self.p_vial2_sbox.setEnabled(False)
-            self.p_spt_edit.setEnabled(True)
-        if self.progSelected == programTypes[7]:    # exp04
+        
+        if self.progSelected == programTypes[4]:    # exp04
             self.p_vial1_sbox.setEnabled(False)
             self.p_vial2_sbox.setEnabled(False)
             self.p_spt_edit.setEnabled(False)
+        if self.progSelected == programTypes[5]:    # exp04a
+            self.p_vial1_sbox.setEnabled(False)
+            self.p_vial2_sbox.setEnabled(False)
+            self.p_spt_edit.setEnabled(True)
+        if self.progSelected == programTypes[6]:    # exp04b
+            self.p_vial1_sbox.setEnabled(False)
+            self.p_vial2_sbox.setEnabled(False)
+            self.p_spt_edit.setEnabled(False)
+
 
     def programStartClicked(self, checked):
         if checked:
             if self.window().recordButton.isChecked() == False:
                 self.logger.warning('not recording to file')
             self.programStartButton.setText('Stop')
+            self.progSettingsBox.setEnabled(False)
             self.program2run = self.programSelectCb.currentText()
             
             self.vialToRun1 = self.p_vial1_sbox.currentText() # get everything from the GUI
             self.vialToRun2 = self.p_vial2_sbox.currentText()
             self.constSpt = self.p_spt_edit.value()
             self.dur_ON = self.p_durON_sbox.value()
-            self.dur_OFF = self.p_durOFF_sbox.value()
-            self.numRuns = self.p_numTimes_sbox.value()
-            
-            self.p_slave1 = self.vialToRun1[0]
-            self.p_vial1 = int(self.vialToRun1[1])
-            self.p_slave2 = self.vialToRun2[0]
-            self.p_vial2 = int(self.vialToRun2[1])
+            #self.dur_OFF = self.p_durOFF_sbox.value()
+            #self.numRuns = self.p_numTimes_sbox.value()
             
             self.obj.dur_ON = self.dur_ON   # give worker all the values
-            self.obj.dur_OFF = self.dur_OFF
-            self.obj.numRuns = self.numRuns
+            self.obj.dur_OFF = self.p_durOFF_sbox.value()
+            self.obj.numRuns = self.p_numTimes_sbox.value()
+            self.obj.setpoint = self.constSpt
+            
+            #self.p_slave1 = self.vialToRun1[0]
+            #self.p_vial1 = int(self.vialToRun1[1])
+            #self.p_slave2 = self.vialToRun2[0]
+            #self.p_vial2 = int(self.vialToRun2[1])
+            
+            if self.program2run == programTypes[0] or self.program2run == programTypes[1] or self.program2run == programTypes[2]:
+                self.obj.slave1 = self.vialToRun1[0]
+                self.obj.vial1 = int(self.vialToRun1[1])
+            elif self.program2run == programTypes[3]:
+                self.obj.slave1 = self.vialToRun1[0]
+                self.obj.vial1 = int(self.vialToRun1[1])
+                self.obj.slave2 = self.vialToRun2[0]
+                self.obj.vial2 = int(self.vialToRun2[1])
+            else:
+                self.obj.slave1 = 'A'
+                self.obj.vial1 = 1
 
-            for i in range(self.numSlaves):
-                if self.slaves[i].slaveName == self.p_slave1: s_index1 = i
-            v_index1 = int(self.p_vial1)-1
-            sensDictName1 = self.slaves[s_index1].vials[v_index1].sensDict
-            self.dictToUse1 = self.sccm2Ard_dicts.get(sensDictName1)
-            for i in range(self.numSlaves):
-                if self.slaves[i].slaveName == self.p_slave2: s_index2 = i
-            v_index2 = int(self.p_vial1)-1
-            sensDictName2 = self.slaves[s_index2].vials[v_index2].sensDict
-            self.dictToUse2 = self.sccm2Ard_dicts.get(sensDictName2)
-
-            if self.program2run == programTypes[0]:     self.thread1.started.connect(self.obj.exp01)   # connect thread started to worker slot
+            if self.program2run == programTypes[0]:     self.thread1.started.connect(self.obj.exp01)    # connect thread started to worker slot
             if self.program2run == programTypes[1]:     self.thread1.started.connect(self.obj.exp01a)   # 01a
             if self.program2run == programTypes[2]:     self.thread1.started.connect(self.obj.exp01b)   # 01b
-            if self.program2run == programTypes[3]:
-                self.thread1.started.connect(self.obj.exp01c)
-                sccmVal = self.constSpt
-                ardVal1 = utils.convertToInt(float(sccmVal),self.dictToUse1)
-                ardVal2 = utils.convertToInt(float(sccmVal),self.dictToUse2)
-                self.sendParameter(self.p_slave1,self.p_vial1,'Sp',str(ardVal1))
-                self.sendParameter(self.p_slave2,self.p_vial2,'Sp',str(ardVal2))
-            if self.program2run == programTypes[4]:                                                     # 01d
-                self.thread1.started.connect(self.obj.exp01d)
-                sccmVal = self.constSpt
-                self.dictToUse1 = self.sccm2Ard_dicts.get(self.slaves[0].vials[0].sensDict)
-                self.dictToUse2 = self.sccm2Ard_dicts.get(self.slaves[0].vials[1].sensDict)
-                self.dictToUse3 = self.sccm2Ard_dicts.get(self.slaves[1].vials[0].sensDict)
-                self.dictToUse4 = self.sccm2Ard_dicts.get(self.slaves[1].vials[1].sensDict)
-                ardVal1 = utils.convertToInt(float(sccmVal),self.dictToUse1)
-                ardVal2 = utils.convertToInt(float(sccmVal),self.dictToUse2)
-                ardVal3 = utils.convertToInt(float(sccmVal),self.dictToUse3)
-                ardVal4 = utils.convertToInt(float(sccmVal),self.dictToUse4)
-                self.sendParameter('A',1,'Sp',str(ardVal1));    time.sleep(.1)
-                self.sendParameter('A',2,'Sp',str(ardVal2));    time.sleep(.1)
-                self.sendParameter('B',1,'Sp',str(ardVal3));    time.sleep(.1)
-                self.sendParameter('B',2,'Sp',str(ardVal4));    time.sleep(.1)
-            if self.program2run == programTypes[5]:     self.thread1.started.connect(self.obj.exp02)    # 02
-            if self.program2run == programTypes[6]:     self.thread1.started.connect(self.obj.exp03)
-            if self.program2run == programTypes[7]:     self.thread1.started.connect(self.obj.exp04)
+            
+            if self.program2run == programTypes[3]:     self.thread1.started.connect(self.obj.exp02)    # 02
+            
+            if self.program2run == programTypes[4]:     self.thread1.started.connect(self.obj.exp04)    # 04
+            if self.program2run == programTypes[5]:     self.thread1.started.connect(self.obj.exp04a)   # 04a
+            if self.program2run == programTypes[6]:     self.thread1.started.connect(self.obj.exp04b)    # 04b
             
             self.thread1.start()
             self.obj.threadON = True
@@ -627,12 +600,41 @@ class olfactometer(QGroupBox):
             self.logger.info('Starting program: %s',self.program2run)
             
         else:
+            self.progSettingsBox.setEnabled(True)
             self.logger.info('program stopped early by user')
             self.threadIsFinished()
     
     
+    def sendThisSetpoint(self, slave:str, vial:int, sccmVal:int):
+        # find dictionary to use
+        for i in range(self.numSlaves):
+            if self.slaves[i].slaveName == slave: s_index = i
+        v_index = vial - 1
+        sensDictName = self.slaves[s_index].vials[v_index].sensDict
+        dictToUse = self.sccm2Ard_dicts.get(sensDictName)
+        
+        # convert to integer and send
+        ardVal = utils.convertToInt(float(sccmVal),dictToUse)
+        self.sendParameter(slave,vial,'Sp',str(ardVal))
+
+    def send_OpenValve(self, slave:str, vial:int):
+        dur = self.dur_ON
+        self.sendParameter(slave,vial,'OV',str(dur))
+
+    def threadIsFinished(self):
+        self.obj.threadON = False
+        self.thread1.quit()
+        self.thread1.terminate()
+        self.programStartButton.setChecked(False)
+        self.programStartButton.setText('Start')
+        self.progSettingsBox.setEnabled(True)
+        self.logger.info('Finished program, quit thread')
+        self.setUpThreads()
+
     
-    
+
+
+    '''
     def sendSetpoint_vial1(self):
         sccmVal = self.constSpt
         ardVal = utils.convertToInt(float(sccmVal),self.dictToUse1)
@@ -643,11 +645,6 @@ class olfactometer(QGroupBox):
         ardVal = utils.convertToInt(float(sccmVal),self.dictToUse1)
         self.sendParameter(self.p_slave1,self.p_vial1,'Sp',str(ardVal))
     
-    def sendThisSetpoint(self,sp):
-        sccmVal = sp
-        ardVal = utils.convertToInt(float(sccmVal),self.dictToUse1)
-        self.sendParameter(self.p_slave1,self.p_vial1,'Sp',str(ardVal))
-
     def sendRandomSetpoint1(self):
         sccmVal1 = random.randint(1,10)
         sccmVal2 = 10 - sccmVal1
@@ -657,24 +654,6 @@ class olfactometer(QGroupBox):
         
     def sendRandomSetpoint2(self):
         self.sendParameter(self.p_slave2,self.p_vial2,'Sp',str(self.ardVal2))
-
-    '''
-    def send2Setpoints(self):
-        sccmVal1 = random.randint(1,10)
-        sccmVal2 = 10 - sccmVal1
-        ardVal1 = utils.convertToInt(float(sccmVal1*10),self.dictToUse1)
-        ardVal2 = utils.convertToInt(float(sccmVal2*10),self.dictToUse2)
-        self.sendParameter(self.p_slave1,self.p_vial1,'Sp',str(ardVal1))
-        self.sendParameter(self.p_slave2,self.p_vial2,'Sp',str(ardVal2))
-    '''
-    
-    def sendOpenValve_vial1(self):
-        dur = self.dur_ON
-        self.sendParameter(self.p_slave1,self.p_vial1,'OV',str(dur))
-
-    def sendOpenValve_vial2(self):
-        dur = self.dur_ON
-        self.sendParameter(self.p_slave2,self.p_vial2,'OV',str(dur))
     
     def sendOpenValve_random(self):
         valve = random.randint(1,4)
@@ -694,21 +673,15 @@ class olfactometer(QGroupBox):
         self.dictToUse1 = self.sccm2Ard_dicts.get(self.slaves[self.this_slave_idx].vials[self.this_vial_idx].sensDict)
         ardVal1 = utils.convertToInt(float(sccmVal1),self.dictToUse1)
         self.sendParameter(self.this_slave,self.this_vial,'Sp',str(ardVal1))
-
-    def openRandomValve(self):
-        self.sendParameter(self.this_slave,self.this_vial,'OV',str(self.dur_ON))
-
-    def threadIsFinished(self):
-        self.obj.threadON = False
-        self.thread1.quit()
-        self.thread1.terminate()
-        self.programStartButton.setChecked(False)
-        self.programStartButton.setText('Start')
-        self.logger.info('Finished program, quit thread')
-        self.setUpThreads()
-
     
-    
+    def send2Setpoints(self):
+        sccmVal1 = random.randint(1,10)
+        sccmVal2 = 10 - sccmVal1
+        ardVal1 = utils.convertToInt(float(sccmVal1*10),self.dictToUse1)
+        ardVal2 = utils.convertToInt(float(sccmVal2*10),self.dictToUse2)
+        self.sendParameter(self.p_slave1,self.p_vial1,'Sp',str(ardVal1))
+        self.sendParameter(self.p_slave2,self.p_vial2,'Sp',str(ardVal2))
+    '''
 
     # INTERFACE FUNCTIONS
     def updateMode(self):
