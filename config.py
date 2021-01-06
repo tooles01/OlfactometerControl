@@ -6,7 +6,7 @@ import logging
 
 
 currentDate = str(datetime.date(datetime.now()))
-logFileName = 'logFile_delete.txt'
+logFileName = 'logFile.txt'
 
 
 # LOGGING
