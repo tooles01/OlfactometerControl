@@ -90,7 +90,7 @@ class worker(QObject):
             if self.threadON == True:
                 self.w_send_OpenValve.emit(self.slave1,self.vial1)
                 time.sleep(self.dur_ON)
-                time.sleep(self.dur_OFF-waitBtSpAndOV)
+                time.sleep(self.dur_OFF)
             else:
                 break
         self.finished.emit()
@@ -118,10 +118,10 @@ class worker(QObject):
             if self.threadON == True:
                 sccmVal1 = random.randint(1,10)
                 sccmVal2 = 10 - sccmVal1
-                self.w_sendThisSp.emit(self.slave1,self.vial1,sccmVal1);     time.sleep(waitBtSps)
-                self.w_sendThisSp.emit(self.slave2,self.vial2,sccmVal2);     time.sleep(waitBtSpAndOV)
+                self.w_sendThisSp.emit(self.slave1,self.vial1,sccmVal1);    time.sleep(waitBtSps)
+                self.w_sendThisSp.emit(self.slave2,self.vial2,sccmVal2);    time.sleep(waitBtSpAndOV)
                 self.w_send_OpenValve.emit(self.slave1,self.vial1);         time.sleep(waitBtSpAndOV)
-                self.w_send_OpenValve.emit(self.slave2,self.vial2);         time.sleep(self.dur_ON - waitBtSpAndOV) # now the ON time is over
+                self.w_send_OpenValve.emit(self.slave2,self.vial2);         time.sleep(self.dur_ON - waitBtSpAndOV) # now valve 1 ON time is over
                 time.sleep(self.dur_OFF-waitBtSps-waitBtSpAndOV)
             else:
                 break
@@ -177,7 +177,7 @@ class worker(QObject):
                 if thisSlave == 2: slave = 'B'
                 thisVial = random.randint(1,2)
                 self.w_sendThisSp.emit(slave,thisVial,sccmVal); time.sleep(waitBtSpAndOV)
-                self.w_send_OpenValve.emit(slave,thisVial);     time.sleep(self.dur_ON + self.dur_OFF)
+                self.w_send_OpenValve.emit(slave,thisVial);     time.sleep(self.dur_ON + self.dur_OFF - waitBtSpAndOV)
             else:
                 break
         self.finished.emit()
