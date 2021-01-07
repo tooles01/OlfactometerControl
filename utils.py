@@ -52,6 +52,8 @@ def createLogger(name):
     # if it's coming from my computer
     if 'shann' in logDir:
         logFileName = 'logfile_delete.txt'
+    else:
+        logFileName = 'logfile.txt'
     
     # create logger
     os.chdir(today_logDir) # move into directory before creating logger (you can also move just before creating the filehandler, but I'd rather do it here)
