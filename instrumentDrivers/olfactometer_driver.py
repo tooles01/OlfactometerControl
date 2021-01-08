@@ -66,7 +66,7 @@ class worker(QObject):
     @pyqtSlot()
     def exp01(self):
         maxsp = 101
-        incr = 1
+        incr = 2
         sccmVal = 1  # starting value
         for j in range(int((maxsp-sccmVal)/incr)):
             for i in range(self.numRuns):
