@@ -37,9 +37,9 @@ sccmRow = 0
 ardRow = 2
 
 # for exp01b
-defDurOn = 2
-defDurOff = 2
-defNumRuns = 2
+defDurOn = 5
+defDurOff = 5
+defNumRuns = 50
 
 defManualCmd = 'A1_OV_5'
 waitBtSpAndOV = .5
@@ -65,9 +65,9 @@ class worker(QObject):
     
     @pyqtSlot()
     def exp01(self):
-        maxsp = 100
-        incr = 10
-        sccmVal = 10
+        maxsp = 101
+        incr = 1
+        sccmVal = 1  # starting value
         for j in range(int((maxsp-sccmVal)/incr)):
             for i in range(self.numRuns):
                 if self.threadON == True:
@@ -82,6 +82,8 @@ class worker(QObject):
         self.finished.emit()
         self.threadON = False
 
+
+    
     @pyqtSlot()
     def exp01a(self):
         self.w_sendThisSp.emit(self.slave1,self.vial1,self.setpoint)
@@ -110,6 +112,22 @@ class worker(QObject):
                 break
         self.finished.emit()
         self.threadON = False
+    
+    @pyqtSlot()
+    def exp01c(self):
+        for i in range(self.numRuns):
+            if self.threadON == True:
+                sccmVal = random.randint(1,100)
+                self.w_sendThisSp.emit(self.slave1,self.vial1,sccmVal)
+                time.sleep(waitBtSpAndOV)
+                self.w_send_OpenValve.emit(self.slave1,self.vial1)
+                time.sleep(self.dur_ON)
+                time.sleep(self.dur_OFF-waitBtSpAndOV)
+            else:
+                break
+        self.finished.emit()
+        self.threadON = False
+    
 
                        
     @pyqtSlot()
