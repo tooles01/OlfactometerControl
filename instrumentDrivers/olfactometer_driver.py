@@ -118,8 +118,8 @@ class worker(QObject):
             if self.threadON == True:
                 sccmVal1 = random.randint(1,10)
                 sccmVal2 = 10 - sccmVal1
-                self.w_sendThisSp.emit(self.slave1,self.vial1,sccmVal1);    time.sleep(waitBtSps)
-                self.w_sendThisSp.emit(self.slave2,self.vial2,sccmVal2);    time.sleep(waitBtSpAndOV)
+                self.w_sendThisSp.emit(self.slave1,self.vial1,sccmVal1*10); time.sleep(waitBtSps)
+                self.w_sendThisSp.emit(self.slave2,self.vial2,sccmVal2*10); time.sleep(waitBtSpAndOV)
                 self.w_send_OpenValve.emit(self.slave1,self.vial1);         time.sleep(waitBtSpAndOV)
                 self.w_send_OpenValve.emit(self.slave2,self.vial2);         time.sleep(self.dur_ON - waitBtSpAndOV) # now valve 1 ON time is over
                 time.sleep(self.dur_OFF-waitBtSps-waitBtSpAndOV)
