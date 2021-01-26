@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QGroupBox, QWidget, QComboBox, QHBoxLayout, QLabel,
                             QPushButton, QCheckBox, QFormLayout, QTextEdit, QVBoxLayout, QGridLayout)
 import utils, config
 
-defMode = 'auto'
+defMode = 'manual'
 defVl = str(config.defVlval)
 lineEditWidth = 45
 defSensorCal = 'Honeywell 3100V'
@@ -25,6 +25,8 @@ class Vial(QGroupBox):
         # get the dictionary u want
         self.sensDict = defSensorCal
         #self.sensDict = self.parent.cal_sheets[0]
+        #self.program_box = QCheckBox(checkable=True,checked=True)
+        self.program_button = QPushButton(text=slave+str(vialNum),checkable=True)
 
         className = type(self).__name__
         loggerName = className + ' (' + self.parent.name + ' ' + self.slave + str(self.vialNum) + ')'

@@ -54,7 +54,7 @@ programTypes = ['exp01 (1 vial, all setpoints)',
                 'exp04b (4 vials, random spts, open randomly)',]
 defVlval = 5
 sensorTypes = ["Honeywell 3100V", "Honeywell 3300V", "Honeywell 5101V"]
-keysToGet = ['defKp','defKi','defKd','defSp']
+
 
 
 # Sensor Things
