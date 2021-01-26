@@ -16,7 +16,6 @@ consoleHandlerLogLevel = logging.DEBUG
 
 # mainGUI.py
 ################################
-users = ['Shannon','Ophir','Other']
 datafileLbl = 'exp01'
 dataFileType = ".csv"
 delimChar = ','
@@ -35,16 +34,6 @@ arduinoMasterConfigFile = 'config_master.h'
 arduinoSlaveConfigFile = 'config_slave.h'
 testingModes = ['auto','manual']
 charsToRead = 16
-'''
-programTypes = ['exp01 (1 vial, all setpoints)',
-                'exp01a (1 vial, 1 setpoint)',
-                'exp01b (1 vial, random spts 0-100)',
-                'exp01c (const spt, 2 vials back and forth)',
-                'exp01d (const spt, random vials)',
-                'exp02 (2 vials, random spts: total=x)',
-                'exp03 (reproduce)',
-                'exp04 (4 vials, random spts)']
-'''
 programTypes = ['exp01 (1 vial, all setpoints)',
                 'exp01a (1 vial, 1 setpoint)',
                 'exp01b (1 vial, random spts 0-100)',
