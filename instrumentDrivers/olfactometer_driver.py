@@ -3,8 +3,9 @@
 
 import csv, os, time, pandas, numpy, random
 from PyQt5 import QtCore, QtSerialPort
-from PyQt5.QtWidgets import (QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QTextEdit, QWidget, QSpinBox,
-                             QLabel, QLineEdit, QPushButton, QScrollArea, QVBoxLayout, QButtonGroup)
+from PyQt5.QtWidgets import *
+#from PyQt5.QtWidgets import (QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QTextEdit, QWidget, QSpinBox,
+#                             QLabel, QLineEdit, QPushButton, QScrollArea, QVBoxLayout, QButtonGroup)
 from PyQt5.QtCore import QThread, QObject, pyqtSignal, pyqtSlot
 from serial.tools import list_ports
 from instrumentDrivers import slave
@@ -52,6 +53,7 @@ class worker(QObject):
     finished = pyqtSignal()
     w_sendThisSp = pyqtSignal(str,int,int)
     w_send_OpenValve = pyqtSignal(str,int)
+    w_incProgBar = pyqtSignal(int)
     
     def __init__(self):
         super().__init__()
@@ -78,7 +80,10 @@ class worker(QObject):
             if self.spType == 'Constant':
                 self.w_sendThisSp.emit(slaveToRun,vialToRun,self.setpoint); time.sleep(waitBtSpAndOV)
                 for i in range(self.numRuns):
-                    if self.threadON == True:   self.w_send_OpenValve.emit(slaveToRun,vialToRun);   time.sleep(self.dur_ON + self.dur_OFF)
+                    if self.threadON == True:
+                        self.w_send_OpenValve.emit(slaveToRun,vialToRun);   time.sleep(self.dur_ON + self.dur_OFF)
+                        progBarVal = int(((i+1)/self.numRuns)*100)
+                        self.w_incProgBar.emit(progBarVal)
                     if self.threadON == False:  break
                 self.finished.emit()
                 self.threadON = False
@@ -144,7 +149,6 @@ class olfactometer(QGroupBox):
         super().__init__()
         self.name = name
         self.port = port
-
         self.record = False
         
         self.className = type(self).__name__
@@ -162,7 +166,7 @@ class olfactometer(QGroupBox):
         self.createConnectBox()
         size = self.connectBox.sizeHint()
         cboxWidth = size.width()
-        self.connectBox.setFixedWidth(col1Width)
+        #self.connectBox.setFixedWidth(col1Width)
         
         # COLUMN 2
         self.column2Layout = QVBoxLayout()
@@ -409,12 +413,11 @@ class olfactometer(QGroupBox):
     def setUpThreads(self):
         self.obj.w_sendThisSp.connect(self.sendThisSetpoint)
         self.obj.w_send_OpenValve.connect(self.send_OpenValve)
+        self.obj.w_incProgBar.connect(self.incProgBar)
         self.obj.finished.connect(self.threadIsFinished)
         self.thread1.started.connect(self.obj.exp)
     
     def createVialProgrammingBox(self):
-        self.expType = ' '
-        self.spOrder = ' '
         self.vialProgrammingBox = QGroupBox("Vial Programming")
         
         self.programSelectCb = QComboBox(); self.programSelectCb.addItems(programTypes)
@@ -422,26 +425,23 @@ class olfactometer(QGroupBox):
         self.programStartButton.setEnabled(False)        
         
         self.p_additiveSelect = QComboBox();  self.p_additiveSelect.addItems(['One vial','Additive vials'])
-        self.p_vialBox = QGroupBox('Vial(s) to run:')
         self.p_vialSelect1 = QComboBox();   self.p_vialSelect2 = QComboBox()
         p_vialBoxLayout = QFormLayout()
         for s in self.slaves:
-            curSlave = s.slaveName
             for v in s.vials:
-                curVial = v.vialNum
-                vialName = curSlave + str(curVial)
+                vialName = s.slaveName + str(v.vialNum)
                 self.p_vialSelect1.addItem(vialName)
                 self.p_vialSelect2.addItem(vialName)
         self.p_vialSelect1.setCurrentIndex(0)
         self.p_vialSelect2.setCurrentIndex(1)
         p_vialBoxLayout.addRow(QLabel("Vial 1:"),self.p_vialSelect1)
         p_vialBoxLayout.addRow(QLabel("Vial 2:"),self.p_vialSelect2)
-        self.p_vialBox.setLayout(p_vialBoxLayout)        
+        self.p_vialBox = QGroupBox('Vial(s) to run:');  self.p_vialBox.setLayout(p_vialBoxLayout)        
         
         self.p_spType = QComboBox();    self.p_spType.addItems(['Constant','Varied'])
         self.p_spOrder = QComboBox();   self.p_spOrder.addItems(['Sequential','Random'])
         self.p_sp = QSpinBox(maximum=maxSp,value=defSp)
-        self.p_spMin = QSpinBox(maximum=maxSp,value=1)
+        self.p_spMin = QSpinBox(maximum=maxSp,value=1); 
         self.p_spMax = QSpinBox(maximum=maxSp,value=10)
         self.p_spInc = QSpinBox(maximum=50,value=2)        
         self.p_durON = QSpinBox(value=defDurOn)
@@ -464,6 +464,8 @@ class olfactometer(QGroupBox):
         p_durBoxLayout.addWidget(QLabel("Dur open:"));      p_durBoxLayout.addWidget(self.p_durON)
         p_durBoxLayout.addWidget(QLabel("Dur closed:"));    p_durBoxLayout.addWidget(self.p_durOFF)
         p_durBox = QGroupBox('Isolation valve duration (s):');  p_durBox.setLayout(p_durBoxLayout)
+        self.progBar = QProgressBar()
+
         
         self.progSettingsLayout = QFormLayout()
         self.progSettingsLayout.addRow(QLabel("Exp. type:"),self.p_additiveSelect)
@@ -471,8 +473,9 @@ class olfactometer(QGroupBox):
         self.progSettingsLayout.addRow(p_spBox)
         self.progSettingsLayout.addRow(p_durBox)
         self.progSettingsLayout.addRow(QLabel("# of runs"),self.p_numRuns)
+        self.progSettingsLayout.addRow(self.progBar)
         self.progSettingsBox = QWidget();   self.progSettingsBox.setLayout(self.progSettingsLayout)
-
+        
         self.p_additiveSelect.currentIndexChanged.connect(self.additive_changed);   self.additive_changed()
         self.p_spType.currentIndexChanged.connect(self.spType_changed);             self.spType_changed()        
         
@@ -481,77 +484,6 @@ class olfactometer(QGroupBox):
         layout.addRow(self.programStartButton)
         self.vialProgrammingBox.setLayout(layout)
         
-    '''
-    def changeProgramSelected(self):
-        newProgSelected = self.programSelectCb.currentText()
-        self.progSelected = newProgSelected
-
-        if self.progSelected == programTypes[0]:    # exp01
-            self.p_vial1_sbox.setEnabled(True)
-            self.p_vial2_sbox.setEnabled(False)
-            self.p_spt_edit.setEnabled(False)
-        if self.progSelected == programTypes[1]:    # exp01a
-            self.p_vial1_sbox.setEnabled(True)
-            self.p_vial2_sbox.setEnabled(False)
-            self.p_spt_edit.setEnabled(True)
-        if self.progSelected == programTypes[2]:    # exp01b
-            self.p_vial1_sbox.setEnabled(True)
-            self.p_vial2_sbox.setEnabled(False)
-            self.p_spt_edit.setEnabled(False)
-        
-        if self.progSelected == programTypes[3]:    # exp02
-            self.p_vial1_sbox.setEnabled(True)
-            self.p_vial2_sbox.setEnabled(True)
-            self.p_spt_edit.setEnabled(False)
-        
-        if self.progSelected == programTypes[4]:    # exp04
-            self.p_vial1_sbox.setEnabled(False)
-            self.p_vial2_sbox.setEnabled(False)
-            self.p_spt_edit.setEnabled(False)
-        if self.progSelected == programTypes[5]:    # exp04a
-            self.p_vial1_sbox.setEnabled(False)
-            self.p_vial2_sbox.setEnabled(False)
-            self.p_spt_edit.setEnabled(True)
-        if self.progSelected == programTypes[6]:    # exp04b
-            self.p_vial1_sbox.setEnabled(False)
-            self.p_vial2_sbox.setEnabled(False)
-            self.p_spt_edit.setEnabled(False)
-    def changeProgramLayout(self):
-        newExpType = self.p_additiveSelect.currentText()
-        if self.expType != newExpType:
-            self.expType = newExpType        
-            if self.expType == 'One vial':
-                self.p_vialSelect1.setEnabled(True)
-                self.p_vialSelect1.setEnabled(False)
-                self.p_spTotal.setEnabled(False)
-            if self.expType == 'Additive vials':
-                self.p_vialSelect1.setEnabled(True)
-                self.p_vialSelect2.setEnabled(True)
-                self.p_spType.setEnabled(False)
-                self.p_spOrder.setEnabled(False)
-                self.p_sp.setEnabled(False)
-                self.p_spTotal.setEnabled(True)
-                #self.p_spOrder.setCurrentIndex(0)
-                #self.changeProgramLayout()
-        
-        newSpOrder = self.p_spType.currentText()
-        if self.spOrder != newSpOrder:
-            self.spOrder = newSpOrder
-            if self.spOrder == 'Constant':
-                self.p_spOrder.setEnabled(False)
-                #self.p_sp.setEnabled(True)
-                #self.p_spTotal.setEnabled(True)
-                self.p_spMin.setEnabled(False)
-                self.p_spMax.setEnabled(False)
-                self.p_spInc.setEnabled(False)
-            if self.spOrder == 'Varied':
-                self.p_spOrder.setEnabled(True)
-                self.p_sp.setEnabled(False)
-                self.p_spTotal.setEnabled(False)
-                self.p_spMin.setEnabled(True)
-                self.p_spMax.setEnabled(True)
-                self.p_spInc.setEnabled(True)
-    '''
     def additive_changed(self):
         currentText = self.p_additiveSelect.currentText()
         if currentText == 'Additive vials':
@@ -587,7 +519,6 @@ class olfactometer(QGroupBox):
             self.progSettingsBox.setEnabled(False)
             program2run = self.programSelectCb.currentText()
             
-            linesToRun = []
             self.expType = self.p_additiveSelect.currentText()
             if self.expType == 'One vial':
                 vialToRun1 = self.p_vialSelect1.currentText()
@@ -637,14 +568,11 @@ class olfactometer(QGroupBox):
         self.sendParameter(slave,vial,'OV',str(dur))
 
     def threadIsFinished(self):
-        self.logger.debug('Setting threadON to False')
         self.obj.threadON = False
         self.thread1.exit()
-        #self.thread1.quit()    # doesn't make a difference if i have this or not
-        #self.thread1.terminate()
         self.programStartButton.setChecked(False);  self.programStartButton.setText('Start')
         self.progSettingsBox.setEnabled(True)
-        #self.logger.info('Finished program')
+        self.logger.info('Finished program')
 
     # INTERFACE FUNCTIONS
     def updateMode(self):
@@ -707,7 +635,7 @@ class olfactometer(QGroupBox):
             else:
                 self.logger.debug('warning - text from Arduino was %s bytes: %s', len(text), text)
     
-    def sendParameter(self, slave: str, vial:int, parameter: str, value=""):
+    def sendParameter(self, slave:str, vial:int, parameter:str, value=""):
         if parameter[0] == 'K' and parameter != 'Kx':
             str_param = 'Kx'
             nextChar = parameter[1].capitalize()
@@ -755,6 +683,10 @@ class olfactometer(QGroupBox):
         except AttributeError as err:
             self.logger.warning('Serial port not open, cannot send parameter: %s', str_send)
     
+    def incProgBar(self, val):
+        self.progBar.setValue(val)
+
+
     '''
     def updatePort(self, newPort):
         self.port = newPort
@@ -764,5 +696,4 @@ class olfactometer(QGroupBox):
             self.name = newName
             self.logger.info('name changed to %s', self.name)
             self.setTitle(self.name)
-    
     '''
