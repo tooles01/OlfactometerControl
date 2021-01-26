@@ -55,10 +55,6 @@ class worker(QObject):
     
     def __init__(self):
         super().__init__()
-        self.slave1 = 'A';  self.vial1 = 1
-        self.slave2 = 'A';  self.vial2 = 2
-        self.slave3 = 'B';  self.vial3 = 1
-        self.slave4 = 'B';  self.vial4 = 2
         self.setpoint = 0
         self.lineToRun_1 = ' '
         self.lineToRun_2 = ' '
