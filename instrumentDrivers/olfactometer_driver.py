@@ -95,29 +95,16 @@ class worker(QObject):
                 while i < self.maxSp:
                     values.append(i)
                     i += self.incSp
-                if self.spOrder == 'Sequential':
-                    for i in range(self.numRuns):
-                        for j in values:
-                            sccmVal = j
-                            if self.threadON == True:
-                                self.w_sendThisSp.emit(slaveToRun,vialToRun,sccmVal);   time.sleep(waitBtSpAndOV)
-                                self.w_send_OpenValve.emit(slaveToRun,vialToRun);       time.sleep(self.dur_ON)
-                                time.sleep(self.dur_OFF-waitBtSpAndOV)
-                            if self.threadON == False:  break
-                        sccmVal = sccmVal + self.incSp
-                    self.finished.emit()
-                    self.threadON = False
-                
-                if self.spOrder == 'Random':
-                    for i in range(self.numRuns):
-                        random.shuffle(values)
-                        for j in values:
-                            sccmVal = j
-                            if self.threadON == True:
-                                self.w_sendThisSp.emit(slaveToRun,vialToRun,sccmVal);   time.sleep(waitBtSpAndOV)
-                                self.w_send_OpenValve.emit(slaveToRun,vialToRun);       time.sleep(self.dur_ON)
-                                time.sleep(self.dur_OFF-waitBtSpAndOV)
-                            if self.threadON == False:  break
+
+                for i in range(self.numRuns):
+                    if self.spOrder == 'Random':    random.shuffle(values)
+                    for j in values:
+                        sccmVal = j
+                        if self.threadON == True:
+                            self.w_sendThisSp.emit(slaveToRun,vialToRun,sccmVal);   time.sleep(waitBtSpAndOV)
+                            self.w_send_OpenValve.emit(slaveToRun,vialToRun);       time.sleep(self.dur_ON)
+                            time.sleep(self.dur_OFF-waitBtSpAndOV)
+                        if self.threadON == False:  break
                     self.finished.emit()
                     self.threadON = False
         
