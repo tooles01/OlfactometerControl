@@ -16,27 +16,13 @@ consoleHandlerLogLevel = logging.DEBUG
 
 # run.py
 ################################
-delimChar = ','
-
-
-# channel_stuff.py
-################################
-instTypes = ['olfactometer','flow sensor','NI-DAQ']
+#delimChar = ','
 noPortMsg = ' ~ No COM ports detected ~'
+
 
 
 # Olfactometer
 ################################
-programTypes = ['exp01 (1 vial, all setpoints)',
-                'exp01a (1 vial, 1 setpoint)',
-                'exp01b (1 vial, random spts 0-100)',
-                'exp02 (2 vials, random spts: total=100)',
-                'exp04 (4 vials, all setpoints, open sequentially)',
-                'exp04a (4 vials, 1 setpoint, open randomly)',
-                'exp04b (4 vials, random spts, open randomly)',]
-#sensorTypes = ["Honeywell 3100V", "Honeywell 3300V", "Honeywell 5101V"]
-
-defVlval = 5
 
 # Sensor Things
 defSlaveASensors = {
