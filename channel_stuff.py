@@ -1,10 +1,9 @@
 # ST 2020
 # channel_stuff.py
 
-import sip
+#import sip
 from serial.tools import list_ports
-from PyQt5.QtWidgets import (QComboBox, QDialog, QGroupBox, QHBoxLayout, QCheckBox, QFormLayout, QTextEdit, 
-                             QLabel, QLineEdit, QPushButton, QSpinBox, QVBoxLayout, QWidget, QGridLayout)
+from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QObject
 from PyQt5.QtGui import QPalette
 import utils, config
@@ -120,7 +119,6 @@ class channelDialog(QDialog):
             self.channels[i].name = self.channels[i].nameWidget.text()
         self.logger.debug("Closing window")
         self.accept()
-
 
 
 class channelGroupBoxObject(QGroupBox):
