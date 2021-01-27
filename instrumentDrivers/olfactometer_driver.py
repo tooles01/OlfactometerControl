@@ -1,7 +1,7 @@
 # ST 2020
 # olfactometer_driver.py
 
-import csv, os, time, pandas, numpy, random
+import os, time, pandas, numpy, random
 from PyQt5 import QtCore, QtSerialPort
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QThread, QObject, pyqtSignal, pyqtSlot
@@ -9,9 +9,7 @@ from serial.tools import list_ports
 import config, utils
 
 
-
 ### VIAL
-defVl = str(config.defVlval)
 defMode = 'manual'
 lineEditWidth = 45
 defSensorCal = 'Honeywell 3100V'
@@ -19,17 +17,14 @@ keysToGet = ['defKp','defKi','defKd','defSp']
 sensorTypes = ["Honeywell 3100V", "Honeywell 3300V", "Honeywell 5101V"]
 
 ### OLFACTOMETER
-currentDate = utils.currentDate
 charsToRead = 16
 
 noPortMsg = config.noPortMsg
+defSensors = config.defSensors
 arduinoMasterConfigFile = 'config_master.h'
 arduinoSlaveConfigFile = 'config_slave.h'
-defSensors = config.defSensors
-programTypes = config.programTypes
 
 testingModes = ['auto','manual']
-
 col2Width = 275
 
 # for getting calibration tables 
@@ -43,9 +38,11 @@ defDurOff = 2
 defNumRuns = 5
 defSp = 100
 maxSp = 200
-defVlval = config.defVlval
+defVl = 5
 
 defManualCmd = 'A1_OV_5'
+
+### WORKER
 waitBtSpAndOV = .5
 waitBtSps = 1
 
@@ -148,7 +145,7 @@ class Vial(QGroupBox):
         spLayout.addWidget(SpSend)
 
         VlLabel = QLabel("Open @ setpoint for x secs:")
-        VlEnter = QLineEdit(text=defVl, maximumWidth=lineEditWidth, returnPressed=lambda: self.sendP('OV',VlEnter.text()))
+        VlEnter = QLineEdit(text=str(defVl), maximumWidth=lineEditWidth, returnPressed=lambda: self.sendP('OV',VlEnter.text()))
         VlButton = QPushButton(text="Go",clicked=lambda: self.sendP('OV',VlEnter.text()))
         vlLayout = QHBoxLayout()
         vlLayout.addWidget(VlLabel)
