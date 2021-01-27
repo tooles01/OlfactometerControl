@@ -14,10 +14,8 @@ fileHandlerLogLevel = logging.INFO
 consoleHandlerLogLevel = logging.DEBUG
 
 
-# mainGUI.py
+# run.py
 ################################
-datafileLbl = 'exp01'
-dataFileType = ".csv"
 delimChar = ','
 
 
@@ -29,11 +27,6 @@ noPortMsg = ' ~ No COM ports detected ~'
 
 # Olfactometer
 ################################
-olfFileLbl = "olfadata"
-arduinoMasterConfigFile = 'config_master.h'
-arduinoSlaveConfigFile = 'config_slave.h'
-testingModes = ['auto','manual']
-charsToRead = 16
 programTypes = ['exp01 (1 vial, all setpoints)',
                 'exp01a (1 vial, 1 setpoint)',
                 'exp01b (1 vial, random spts 0-100)',
@@ -41,10 +34,9 @@ programTypes = ['exp01 (1 vial, all setpoints)',
                 'exp04 (4 vials, all setpoints, open sequentially)',
                 'exp04a (4 vials, 1 setpoint, open randomly)',
                 'exp04b (4 vials, random spts, open randomly)',]
+#sensorTypes = ["Honeywell 3100V", "Honeywell 3300V", "Honeywell 5101V"]
+
 defVlval = 5
-sensorTypes = ["Honeywell 3100V", "Honeywell 3300V", "Honeywell 5101V"]
-
-
 
 # Sensor Things
 defSlaveASensors = {

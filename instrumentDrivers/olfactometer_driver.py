@@ -4,32 +4,32 @@
 import csv, os, time, pandas, numpy, random
 from PyQt5 import QtCore, QtSerialPort
 from PyQt5.QtWidgets import *
-#from PyQt5.QtWidgets import (QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QTextEdit, QWidget, QSpinBox,
-#                             QLabel, QLineEdit, QPushButton, QScrollArea, QVBoxLayout, QButtonGroup)
 from PyQt5.QtCore import QThread, QObject, pyqtSignal, pyqtSlot
 from serial.tools import list_ports
-from instrumentDrivers import slave
 import config, utils
 
-currentDate = utils.currentDate
 
-olfFileLbl = config.olfFileLbl
-dataFileType = config.dataFileType
-delimChar = config.delimChar
 
+### VIAL
+defVl = str(config.defVlval)
+defMode = 'manual'
+lineEditWidth = 45
+defSensorCal = 'Honeywell 3100V'
 keysToGet = ['defKp','defKi','defKd','defSp']
-charsToRead = config.charsToRead
+sensorTypes = ["Honeywell 3100V", "Honeywell 3300V", "Honeywell 5101V"]
+
+### OLFACTOMETER
+currentDate = utils.currentDate
+charsToRead = 16
+
 noPortMsg = config.noPortMsg
-arduinoMasterConfigFile = config.arduinoMasterConfigFile
-arduinoSlaveConfigFile = config.arduinoSlaveConfigFile
+arduinoMasterConfigFile = 'config_master.h'
+arduinoSlaveConfigFile = 'config_slave.h'
 defSensors = config.defSensors
 programTypes = config.programTypes
-testingModes = config.testingModes
-#keysToGet = config.keysToGet
 
-setpointVals = [10,20,30,40,50]
-textEditWidth = 135
-col1Width = 325
+testingModes = ['auto','manual']
+
 col2Width = 275
 
 # for getting calibration tables 
@@ -38,16 +38,335 @@ rowsb4header = 2
 sccmRow = 0
 ardRow = 2
 
-# for exp01b
 defDurOn = 2
 defDurOff = 2
 defNumRuns = 5
 defSp = 100
 maxSp = 200
+defVlval = config.defVlval
 
 defManualCmd = 'A1_OV_5'
 waitBtSpAndOV = .5
 waitBtSps = 1
+
+class Vial(QGroupBox):
+
+    def __init__(self, parent, slave, vialNum, sensorType):
+        super().__init__()
+        self.parent = parent
+        self.slave = slave
+        self.vialNum = vialNum
+        self.sensType = sensorType      ## ** sensor type doesn't matter - just the dictionary does
+        self.mode = defMode
+
+        # get the dictionary u want
+        self.sensDict = defSensorCal
+        #self.sensDict = self.parent.cal_sheets[0]
+        self.program_button = QPushButton(text=slave+str(vialNum),checkable=True)
+
+        className = type(self).__name__
+        loggerName = className + ' (' + self.parent.name + ' ' + self.slave + str(self.vialNum) + ')'
+        self.logger = utils.createLogger(loggerName)
+        self.logger.debug('Creating %s', loggerName)
+
+        self.getDefVals()
+
+        title = "Vial " + slave + str(vialNum) + ": " + self.sensType
+        self.setTitle(title)        
+
+        if self.mode == 'auto':
+            self.mainLayout = QHBoxLayout()
+            self.setLayout(self.mainLayout)
+
+            self.createVialSettingsBox()
+            self.createRunSettingsBox()
+            self.createDataReceiveBoxes()
+
+            self.mainLayout.addWidget(self.vialSettingsBox)
+            self.mainLayout.addWidget(self.runSettingsBox)
+            self.mainLayout.addWidget(self.dataReceiveBox)
+        
+        if self.mode == 'manual':
+            self.mainLayout = QHBoxLayout()
+            self.setLayout(self.mainLayout)
+
+            self.createVialSettingsBox()
+            self.createFlowTuningBox()
+            self.createDebugBox()
+            self.createRunSettingsBox()
+            self.createDataReceiveBoxes()
+
+            self.mainLayout.addWidget(self.vialSettingsBox)
+            self.mainLayout.addWidget(self.flowTuningBox)
+            self.mainLayout.addWidget(self.debugBox)
+            self.mainLayout.addWidget(self.runSettingsBox)
+            self.mainLayout.addWidget(self.dataReceiveBox)
+    
+    def getDefVals(self):
+        slaveVars = self.parent.ardConfig_s
+        for key in keysToGet:
+            keyStr = 'self.' + key
+            exec(keyStr + '=slaveVars.get(key)')
+    
+    # CREATE BOXES
+    def createVialSettingsBox(self):
+        self.vialSettingsBox = QGroupBox("vial settings")
+
+        self.recBox = QCheckBox(checkable=True,checked=True)
+
+        self.sensTypeBox = QComboBox()
+        self.sensTypeBox.addItems(sensorTypes)
+        self.sensTypeBox.setCurrentText(self.sensType)
+        self.sensTypeBox.setEnabled(False)
+        self.sensTypeBtn = QPushButton(text="Edit",checkable=True)
+        self.sensTypeBtn.clicked.connect(self.clicked_sensTypeEdit)
+
+        self.sensDictBox = QComboBox()
+        self.sensDictBox.addItems(self.parent.cal_sheets)
+        self.sensDictBox.setCurrentText(self.sensDict)
+        self.sensDictBox.setEnabled(False)
+        self.sensDictBtn = QPushButton(text="Edit",checkable=True)
+        self.sensDictBtn.clicked.connect(self.clicked_sensDictEdit)
+
+        layout = QFormLayout()
+        layout.addRow(QLabel(text="Record to file:"),self.recBox)
+        layout.addRow(QLabel("Sensor Type:"))
+        layout.addRow(self.sensTypeBox,self.sensTypeBtn)
+        layout.addRow(QLabel("Sensor Calibration Table:"))
+        layout.addRow(self.sensDictBox,self.sensDictBtn)
+        self.vialSettingsBox.setLayout(layout)
+            
+    def createRunSettingsBox(self):
+        self.runSettingsBox = QGroupBox("run settings")
+
+        SpLabel = QLabel("Setpoint (SCCM):")
+        SpEnter = QLineEdit(text=self.defSp, maximumWidth=lineEditWidth, returnPressed=lambda: self.sendP('Sp',SpEnter.text()))
+        SpSend = QPushButton(text="Update", clicked=lambda: self.sendP('Sp',SpEnter.text()))
+        spLayout = QHBoxLayout()
+        spLayout.addWidget(SpLabel)
+        spLayout.addWidget(SpEnter)
+        spLayout.addWidget(SpSend)
+
+        VlLabel = QLabel("Open @ setpoint for x secs:")
+        VlEnter = QLineEdit(text=defVl, maximumWidth=lineEditWidth, returnPressed=lambda: self.sendP('OV',VlEnter.text()))
+        VlButton = QPushButton(text="Go",clicked=lambda: self.sendP('OV',VlEnter.text()))
+        vlLayout = QHBoxLayout()
+        vlLayout.addWidget(VlLabel)
+        vlLayout.addWidget(VlEnter)
+        vlLayout.addWidget(VlButton)
+
+        layout = QFormLayout()
+        layout.addRow(SpLabel)
+        layout.addRow(SpEnter,SpSend)
+        layout.addRow(VlLabel)
+        layout.addRow(VlEnter,VlButton)
+        self.runSettingsBox.setLayout(layout)
+    
+    def createFlowTuningBox(self):
+        self.flowTuningBox = QGroupBox("flow control tuning")
+
+        KpLabel = QLabel('Kp:')
+        KpEnter = QLineEdit(text=self.defKp, width=lineEditWidth, returnPressed=lambda: self.sendP('Kp',KpEnter.text()))
+        KpSend = QPushButton(text="Send",clicked=lambda: self.sendP('Kp',KpEnter.text()))
+        KpRow = QHBoxLayout()
+        KpRow.addWidget(KpLabel)
+        KpRow.addWidget(KpEnter)
+        KpRow.addWidget(KpSend)
+        KiLabel = QLabel('Ki:')
+        KiEnter = QLineEdit(text=self.defKi, maximumWidth=lineEditWidth, returnPressed=lambda: self.sendP('Ki',KiEnter.text()))
+        KiSend = QPushButton(text="Send", clicked=lambda: self.sendP('Ki',KiEnter.text()))
+        KiRow = QHBoxLayout()
+        KiRow.addWidget(KiLabel)
+        KiRow.addWidget(KiEnter)
+        KiRow.addWidget(KiSend)
+        KdLabel = QLabel('Kd:')
+        KdEnter = QLineEdit(text=self.defKd, maximumWidth=lineEditWidth, returnPressed=lambda: self.sendP('Kd',KdEnter.text()))
+        KdSend = QPushButton(text="Send", clicked=lambda: self.sendP('Kd',KdEnter.text()))
+        KdRow = QHBoxLayout()
+        KdRow.addWidget(KdLabel)
+        KdRow.addWidget(KdEnter)
+        KdRow.addWidget(KdSend)
+        
+        SendAllButton = QPushButton(text="Send all K vals",clicked=lambda: self.sendP('Kx',KpEnter.text(),KiEnter.text(),KdEnter.text()))
+
+        flowTuningBoxLayout = QFormLayout()
+        flowTuningBoxLayout.addRow(KpRow)
+        flowTuningBoxLayout.addRow(KiRow)
+        flowTuningBoxLayout.addRow(KdRow)
+        flowTuningBoxLayout.addRow(SendAllButton)
+        self.flowTuningBox.setLayout(flowTuningBoxLayout)
+    
+    def createDebugBox(self):
+        self.debugBox = QGroupBox("debugging")
+
+        self.PIDToggle = QPushButton(text="Turn PID on",checkable=True,toggled=self.toggled_PID)
+        self.CtrlToggle = QPushButton(text="Open prop valve",checkable=True,toggled=self.toggled_ctrlOpen)
+        self.VlToggle = QPushButton(text="Open Iso Valve",checkable=True,toggled=self.toggled_valveOpen)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.PIDToggle)
+        layout.addWidget(self.CtrlToggle)
+        layout.addWidget(self.VlToggle)
+        self.debugBox.setLayout(layout)
+    
+    def createDataReceiveBoxes(self):
+        self.dataReceiveBox = QGroupBox("data received")
+
+        self.receiveBox = QTextEdit(readOnly=True)
+        receiveBoxLbl = QLabel(text="Flow val (int), Flow (SCCM), Ctrl val (int)")
+        receiveBoxLayout = QVBoxLayout()
+        receiveBoxLayout.addWidget(receiveBoxLbl)
+        receiveBoxLayout.addWidget(self.receiveBox)
+
+        layout = QHBoxLayout()
+        layout.addLayout(receiveBoxLayout)
+        self.dataReceiveBox.setLayout(layout)
+    
+    
+    # USER ACTION
+    def clicked_sensTypeEdit(self, checked):
+        if checked:
+            self.sensTypeBtn.setText("Done")
+            self.sensTypeBox.setEnabled(True)
+        else:
+            self.sensTypeBtn.setText("Edit")
+            self.sensTypeBox.setEnabled(False)
+            newSensType = self.sensTypeBox.currentText()
+            if not self.sensType == newSensType:
+                self.sensType = newSensType
+                self.logger.info('sensor type changed to: %s', self.sensType)
+                title = "Vial " + str(self.vialNum) + ": " + self.sensType
+                self.setTitle(title)
+    
+    def clicked_sensDictEdit(self, checked):
+        if checked:
+            self.sensDictBtn.setText("Done")
+            self.sensDictBox.setEnabled(True)
+        else:
+            self.sensDictBtn.setText("Edit")
+            self.sensDictBox.setEnabled(False)
+            newSensDict = self.sensDictBox.currentText()
+            if not self.sensDict == newSensDict:
+                self.sensDict = newSensDict
+                self.logger.info('sensor calibration table changed to: %s', self.sensDict)        
+    
+    
+    def toggled_PID(self, checked):
+        if checked:
+            self.sendP('ON')
+            self.PIDToggle.setText('Turn PID Off')
+        else:
+            self.sendP('OF')
+            self.PIDToggle.setText('Turn PID On')
+
+    def toggled_ctrlOpen(self, checked):
+        if checked:
+            self.sendP('OC')
+            self.CtrlToggle.setText('Close prop valve')
+        else:
+            self.sendP('CC')
+            self.CtrlToggle.setText('Open prop valve')
+    
+    def toggled_valveOpen(self, checked, value=""):
+        if checked:
+            self.sendP('OV')
+            self.VlToggle.setText('Close Iso Valve')
+        else:
+            self.sendP('CV')
+            self.VlToggle.setText('Open Iso Valve')
+
+    
+    def sendP(self, parameter, val1="", val2="", val3=""):
+        if parameter == 'Sp':
+            s_dict = self.parent.sccm2Ard_dicts.get(self.sensDict)
+            calculatedSp = utils.convertToInt(float(val1),s_dict)
+            value = str(calculatedSp)
+        elif parameter == 'Kx':
+            if val1:    str_Kp = "_P" + val1
+            else:       str_Kp = ""
+            if val2:    str_Ki = "_I" + val2
+            else:       str_Ki = ""
+            if val3:    str_Kd = "_D" + val3
+            else:       str_Kd = ""
+            value = str_Kp + str_Ki + str_Kd
+            value = value[1:]   # remove the extra underscore at front
+        else:
+            value = val1
+        
+        self.parent.sendParameter(self.slave,self.vialNum,parameter,value)
+
+    
+    # ACCESSED BY EXTERNAL THINGS
+    def changeMode(self, newMode):
+        if self.mode == newMode:
+            self.logger.info('same mode as previous')
+        
+        else:
+            # delete all current widgets            
+            for i in reversed(range(self.mainLayout.count())):
+                item = self.mainLayout.itemAt(i)
+                w = self.mainLayout.itemAt(i).widget()
+                self.mainLayout.removeWidget(w)
+                sip.delete(w)
+
+            self.mode = newMode
+            if self.mode == 'auto':
+                self.createVialSettingsBox()
+                self.createRunSettingsBox()
+                self.createDataReceiveBoxes()
+                self.mainLayout.addWidget(self.vialSettingsBox,0,0)
+                self.mainLayout.addWidget(self.runSettingsBox,1,0)
+                self.mainLayout.addWidget(self.dataReceiveBox,0,1,2,1)
+                
+            if self.mode == 'manual':
+                self.createVialSettingsBox()
+                self.createRunSettingsBox()
+                self.createFlowTuningBox()
+                self.createDebugBox()
+                self.createDataReceiveBoxes()
+
+                self.mainLayout.addWidget(self.vialSettingsBox,0,0)
+                self.mainLayout.addWidget(self.runSettingsBox,1,0)
+                self.mainLayout.addWidget(self.flowTuningBox,0,1)
+                self.mainLayout.addWidget(self.debugBox,1,1)
+                self.mainLayout.addWidget(self.dataReceiveBox,0,2,2,1)
+    
+    def appendNew(self, value):
+        flowValue = value[0:4]
+        ctrlValue = value[5:8]        
+
+        flowVal = int(flowValue)
+        s_dict = self.parent.ard2Sccm_dicts.get(self.sensDict)
+        val_SCCM = utils.convertToSCCM(flowVal,s_dict)
+        
+        dataStr = flowValue + '\t' + str(val_SCCM) + '\t' + ctrlValue
+        self.receiveBox.append(dataStr)
+
+
+class Slave(QGroupBox):
+
+    def __init__(self, parent, slaveName, numVials, sensorTypes):
+        super().__init__()
+        self.slaveName = slaveName
+        self.numVials = numVials
+        self.sensorTypes = sensorTypes
+
+        layout = QVBoxLayout()
+        self.vials = []
+        for x in range(numVials):
+            vialNum = x+1
+            try:
+                v_sensorType = sensorTypes[vialNum]
+            except IndexError:
+                v_sensorType = sensorTypes[0]
+            #v_vial = vial.Vial(parent,slaveName,vialNum,v_sensorType)
+            v_vial = Vial(parent,slaveName,vialNum,v_sensorType)
+            self.vials.append(v_vial)
+            layout.addWidget(v_vial)
+        
+        self.setTitle("Slave " + self.slaveName)
+        self.setLayout(layout)
+
 
 class worker(QObject):
     finished = pyqtSignal()
@@ -130,8 +449,6 @@ class worker(QObject):
             self.finished.emit()
             self.threadON = False
 
-
-
 class olfactometer(QGroupBox):
 
     def __init__(self, name, port=""):
@@ -154,7 +471,6 @@ class olfactometer(QGroupBox):
         self.createConnectBox()
         #size = self.connectBox.sizeHint()
         #cboxWidth = size.width()
-        #self.connectBox.setFixedWidth(col1Width)
         self.createMasterBox()
         self.createSlaveGroupBox()  # need to make this before vial programming box
         self.createFlowSettingsBox()
@@ -197,14 +513,7 @@ class olfactometer(QGroupBox):
         self.defTimebt = self.ardConfig_m.get('timeBetweenRequests')
         
         # VARIABLES FROM SLAVE CONFIG FILE
-        self.keysToGet = keysToGet
         self.ardConfig_s = utils.getArduinoConfigFile(arduinoSlaveConfigFile)
-        for key in keysToGet:
-            keyStr = 'self.' + key
-            if key in self.ardConfig_s.keys():
-                exec(keyStr + '=self.ardConfig_s.get(key)')
-            else:
-                exec(keyStr + '="0.000"')
         
         # CALIBRATION TABLES        
         self.sccm2Ard_dicts = {}
@@ -359,7 +668,6 @@ class olfactometer(QGroupBox):
         layout.addWidget(modeLabel)
         layout.addWidget(self.modeCb)
         layout.addWidget(self.modeUpdate)
-
         self.flowSettingsBox.setLayout(layout)
 
     def createSlaveGroupBox(self):
@@ -370,7 +678,8 @@ class olfactometer(QGroupBox):
             s_slaveName = self.slaveNames[i]
             s_vPSlave = int(self.vPSlave[i])
             s_sensor = defSensors[i]
-            s_slave = slave.Slave(self,s_slaveName,s_vPSlave,s_sensor)
+            #s_slave = slave.Slave(self,s_slaveName,s_vPSlave,s_sensor)
+            s_slave = Slave(self,s_slaveName,s_vPSlave,s_sensor)
             self.slaves.append(s_slave)
         
         allSlaves_layout = QVBoxLayout()
@@ -528,7 +837,6 @@ class olfactometer(QGroupBox):
         else:
             self.progSettingsBox.setEnabled(True)
             self.logger.info('program stopped early by user')
-            self.progBar.reset()
             self.threadIsFinished()
     
     def updateProgDurLabel(self):
@@ -565,6 +873,7 @@ class olfactometer(QGroupBox):
         self.programStartButton.setChecked(False);  self.programStartButton.setText('Start')
         self.progSettingsBox.setEnabled(True)
         self.logger.info('Finished program')
+        self.progBar.setValue(0)
 
     # INTERFACE FUNCTIONS
     def updateMode(self):
@@ -612,14 +921,6 @@ class olfactometer(QGroupBox):
                                     value = flowVal
                                     self.window().receiveDataFromChannels(instrument,unit,value)
 
-                            if self.record:     # if recording to olfa file is on
-                                if recordOn:
-                                    toWrite = utils.writeToFile(vialInfo,'FL',flowVal,ctrlVal)
-                                    with open(self.enteredFileName,'a',newline='') as f:
-                                        writer = csv.writer(f,delimiter=delimChar)
-                                        writer.writerow(toWrite)
-                                    self.logFileOutputBox.append(str(toWrite))
-                        
                         except IndexError as err:
                             self.logger.error('arduino master config file does not include vial %s', vialInfo)
                 except UnicodeDecodeError as err:
