@@ -16,9 +16,7 @@ consoleHandlerLogLevel = logging.DEBUG
 
 # run.py
 ################################
-#delimChar = ','
 noPortMsg = ' ~ No COM ports detected ~'
-
 
 
 # Olfactometer
