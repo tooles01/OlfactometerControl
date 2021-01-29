@@ -458,6 +458,7 @@ class olfactometer(QGroupBox):
         self.connectBox.setFixedWidth(connWidth.width())
         progWidth = self.vialProgrammingBox.sizeHint()
         self.vialProgrammingBox.setFixedWidth(progWidth.width())
+        self.masterBox.setFixedWidth(progWidth.width())
 
         self.connectButton.setChecked(False)
         self.refreshButton.setEnabled(True)
