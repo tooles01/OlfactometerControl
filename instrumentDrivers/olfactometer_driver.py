@@ -36,9 +36,9 @@ ardRow = 2
 
 
 ### DEFAULT VALUES
-defDurOn = 2
-defDurOff = 2
-defNumRuns = 5
+defDurOn = 5
+defDurOff = 5
+defNumRuns = 10
 defSp = 100
 maxSp = 200
 defVl = 5
@@ -373,27 +373,27 @@ class worker(QObject):
                 self.threadON = False
                 
             if self.spType == 'Varied':
+                # create list of values
                 values = []
                 i = self.minSp
                 while i < self.maxSp:
-                    values.append(i)
+                    for n in range(self.numRuns):   values.append(i)
                     i += self.incSp
-
-                for i in range(self.numRuns):
-                    if self.spOrder == 'Random':    random.shuffle(values)
-                    for j in values:
-                        sccmVal = j
-                        if self.threadON == True:
-                            self.w_sendThisSp.emit(slaveToRun,vialToRun,sccmVal);   time.sleep(waitBtSpAndOV)
-                            self.w_send_OpenValve.emit(slaveToRun,vialToRun,self.dur_ON);       time.sleep(self.dur_ON)
-                            time.sleep(self.dur_OFF-waitBtSpAndOV)
-                            idx = values.index(j) + 1
-                            progBarVal = int((idx / (len(values)*self.numRuns)) *100)
-                            self.w_incProgBar.emit(progBarVal)
-                        if self.threadON == False:  break
-                    self.finished.emit()
-                    self.threadON = False
-        
+                if self.spOrder == 'Random':    random.shuffle(values)
+                
+                for j in values:
+                    sccmVal = j
+                    if self.threadON == True:
+                        self.w_sendThisSp.emit(slaveToRun,vialToRun,sccmVal);   time.sleep(waitBtSpAndOV)
+                        self.w_send_OpenValve.emit(slaveToRun,vialToRun,self.dur_ON);       time.sleep(self.dur_ON)
+                        time.sleep(self.dur_OFF-waitBtSpAndOV)
+                        idx = values.index(j) + 1
+                        progBarVal = int((idx / (len(values)*self.numRuns)) *100)
+                        self.w_incProgBar.emit(progBarVal)
+                    if self.threadON == False:  break
+                self.finished.emit()
+                self.threadON = False
+    
         # this can only do for 2 additive vials i don't have the energy to figure out how to make it work for 3
         if self.expType == 'Additive vials':
             slaveToRun1 = self.lineToRun_1[0]
@@ -453,6 +453,11 @@ class olfactometer(QGroupBox):
         self.mainLayout.addWidget(self.slaveGroupBox)
         self.setLayout(self.mainLayout)
         self.setTitle(self.name)
+
+        connWidth = self.connectBox.sizeHint()
+        self.connectBox.setFixedWidth(connWidth.width())
+        progWidth = self.vialProgrammingBox.sizeHint()
+        self.vialProgrammingBox.setFixedWidth(progWidth.width())
 
         self.connectButton.setChecked(False)
         self.refreshButton.setEnabled(True)
@@ -823,9 +828,11 @@ class olfactometer(QGroupBox):
         currentText = self.p_spType.currentText()
         if currentText == 'Constant':
             self.p_spOrder.setEnabled(False)
+            self.p_sp.setEnabled(True)
             self.p_sp2.setEnabled(False)
         if currentText == 'Varied':
             self.p_spOrder.setEnabled(True)
+            self.p_sp.setEnabled(False)
             self.p_sp2.setEnabled(True)
     
     def programStartClicked(self, checked):
