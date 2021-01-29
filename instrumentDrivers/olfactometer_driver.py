@@ -756,7 +756,7 @@ class olfactometer(QGroupBox):
         self.p_spOrder = QComboBox();   self.p_spOrder.addItems(['Sequential','Random'])
         self.p_sp = QSpinBox(maximum=maxSp,value=defSp)
         self.p_spMin = QSpinBox(maximum=maxSp,value=1); 
-        self.p_spMax = QSpinBox(maximum=maxSp,value=maxSp)
+        self.p_spMax = QSpinBox(maximum=maxSp,value=defSp)
         self.p_spInc = QSpinBox(maximum=maxSp/2,value=2)
         
         p_sp1_layout = QFormLayout()
@@ -806,8 +806,15 @@ class olfactometer(QGroupBox):
         layout.addRow(self.programStartButton)
         self.vialProgrammingBox.setLayout(layout)
 
-        self.p_additiveSelect.currentIndexChanged.connect(self.additive_changed);   self.additive_changed()
-        self.p_spType.currentIndexChanged.connect(self.spType_changed);             self.spType_changed()        
+        self.p_additiveSelect.currentIndexChanged.connect(self.additive_changed)
+        self.p_additiveSelect.currentIndexChanged.connect(self.updateProgDurLabel)
+        self.additive_changed()
+        self.p_spType.currentIndexChanged.connect(self.spType_changed)
+        self.p_spType.currentIndexChanged.connect(self.updateProgDurLabel)
+        self.spType_changed()
+        self.p_spMin.valueChanged.connect(self.updateProgDurLabel)
+        self.p_spMax.valueChanged.connect(self.updateProgDurLabel)
+        self.p_spInc.valueChanged.connect(self.updateProgDurLabel)
         self.p_durON.valueChanged.connect(self.updateProgDurLabel)
         self.p_durOFF.valueChanged.connect(self.updateProgDurLabel)
         self.p_numRuns.valueChanged.connect(self.updateProgDurLabel)
@@ -868,16 +875,27 @@ class olfactometer(QGroupBox):
             self.threadIsFinished()
     
     def updateProgDurLabel(self):
-        # ~~ unfinished
-        # # iso valve duration
-        # num runs
+        # still not done for additive
 
-        # calculate duration of experiment
-        # one vial
-        totalDur = (self.p_durON.value() + self.p_durOFF.value())*self.p_numRuns.value()
+        numRuns = self.p_numRuns.value()
+        durON = self.p_durON.value()
+        durOFF = self.p_durOFF.value()
 
-        self.progDurLbl.setText(str(totalDur) + " seconds")
-    
+        if self.p_spType.currentText() == 'Constant':
+            numValues = numRuns
+        if self.p_spType.currentText() == 'Varied':
+            values = []
+            i = self.p_spMin.value()
+            while i < self.p_spMax.value():
+                for n in range(numRuns):    values.append(i)
+                i += self.p_spInc.value()
+            numValues = len(values)
+        totalDur = (durON+durOFF)*numValues
+        totalDur_min = int(totalDur/60)
+        totalDur_sec = totalDur%60
+        
+        #self.progDurLbl.setText(str(totalDur) + " seconds --> " + str(totalDur_min) + " min, " + str(totalDur_sec) + " sec")
+        self.progDurLbl.setText(str(totalDur_min) + " min, " + str(totalDur_sec) + " sec")
     
     
     def sendThisSetpoint(self, slave:str, vial:int, sccmVal:int):
