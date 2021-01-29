@@ -8,6 +8,8 @@ from PyQt5.QtCore import QThread, QObject, pyqtSignal, pyqtSlot
 from serial.tools import list_ports
 import config, utils
 
+currentDate = config.currentDate
+calValue = 100
 
 ### VIAL
 defMode = 'auto'
@@ -435,13 +437,13 @@ class olfactometer(QGroupBox):
         self.createConnectBox()
         self.createMasterBox()
         self.createSlaveGroupBox()  # need to make this before vial programming box
-        self.createCalibrationBox()
+        #self.createCalibrationBox()
         #self.createFlowSettingsBox()
         self.createVialProgrammingBox()
         
         self.column2Layout = QVBoxLayout()
         self.column2Layout.addWidget(self.masterBox)
-        self.column2Layout.addWidget(self.calibrationBox)
+        #self.column2Layout.addWidget(self.calibrationBox)
         #self.column2Layout.addWidget(self.flowSettingsBox)
         self.column2Layout.addWidget(self.vialProgrammingBox)
         
@@ -641,7 +643,7 @@ class olfactometer(QGroupBox):
         layout.addRow(QLabel(text="Manually send command:"))
         layout.addRow(self.manualCmdBox,manualCmdBtn)
         self.masterBox.setLayout(layout)        
-
+    '''
     def createCalibrationBox(self):
         self.calibrationBox = QGroupBox("Flow Sensor Calibration")
 
@@ -650,12 +652,12 @@ class olfactometer(QGroupBox):
             for v in s.vials:
                 slaveNum = v.slave + str(v.vialNum)
                 self.calVial.addItem(slaveNum)
-        self.calFile = QTextEdit(text=self.calVial.currentText() + '_' + currentDate)
+        self.calFile = QLineEdit(text=self.calVial.currentText() + '_' + currentDate)
         self.calStartBtn = QPushButton(text="Start",checkable=True)
         
         self.c_pgm_box = QGroupBox()
         lbl = QLabel("Set MFC to: ")
-        self.calValueLbl = QLabel(text=self.calValue)
+        self.calValueLbl = QLabel(text=calValue)
         self.c_pgm_start = QPushButton(text="Go")
         self.c_pgm_progBar = QProgressBar()
         layout2 = QFormLayout()
@@ -674,7 +676,7 @@ class olfactometer(QGroupBox):
 
         self.calStartBtn.clicked.connect(self.startCalibration)
 
-    
+    '''
     
     def createFlowSettingsBox(self):
         self.flowSettingsBox = QGroupBox("Flow Control Mode")
