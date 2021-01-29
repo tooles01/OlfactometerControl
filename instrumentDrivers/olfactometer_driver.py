@@ -659,7 +659,7 @@ class olfactometer(QGroupBox):
         self.c_pgm_start = QPushButton(text="Go")
         self.c_pgm_progBar = QProgressBar()
         layout2 = QFormLayout()
-        layout2.addWidget(lbl,self.calValueLbl))
+        layout2.addWidget(lbl,self.calValueLbl)
         layout2.addWidget
         
         layout = QFormLayout()
