@@ -388,7 +388,7 @@ class worker(QObject):
                         self.w_send_OpenValve.emit(slaveToRun,vialToRun,self.dur_ON);       time.sleep(self.dur_ON)
                         time.sleep(self.dur_OFF-waitBtSpAndOV)
                         idx = values.index(j) + 1
-                        progBarVal = int((idx / (len(values)*self.numRuns)) *100)
+                        progBarVal = int( (idx/len(values)) *100 )
                         self.w_incProgBar.emit(progBarVal)
                     if self.threadON == False:  break
                 self.finished.emit()
@@ -755,7 +755,7 @@ class olfactometer(QGroupBox):
         self.p_spOrder = QComboBox();   self.p_spOrder.addItems(['Sequential','Random'])
         self.p_sp = QSpinBox(maximum=maxSp,value=defSp)
         self.p_spMin = QSpinBox(maximum=maxSp,value=1); 
-        self.p_spMax = QSpinBox(maximum=maxSp,value=10)
+        self.p_spMax = QSpinBox(maximum=maxSp,value=maxSp)
         self.p_spInc = QSpinBox(maximum=maxSp/2,value=2)
         
         p_sp1_layout = QFormLayout()
@@ -858,7 +858,7 @@ class olfactometer(QGroupBox):
             self.obj.incSp = self.p_spInc.value()
 
             self.obj.threadON = True
-            self.logger.debug('Starting thread')
+            self.logger.info('Starting program')
             self.thread1.start()
             
         else:
