@@ -648,7 +648,7 @@ class olfactometer(QGroupBox):
         layout.addRow(timeBtReqBox,timeBtButton)
         layout.addRow(QLabel(text="Manually send command:"))
         layout.addRow(self.manualCmdBox,manualCmdBtn)
-        self.masterBox.setLayout(layout)        
+        self.masterBox.setLayout(layout)
     '''
     def createCalibrationBox(self):
         self.calibrationBox = QGroupBox("Flow Sensor Calibration")
@@ -677,11 +677,7 @@ class olfactometer(QGroupBox):
         layout.addRow(self.c_pgm_box)
         self.calibrationBox.setLayout(layout)
 
-        
-
-
         self.calStartBtn.clicked.connect(self.startCalibration)
-
     '''
     
     def createFlowSettingsBox(self):
@@ -819,29 +815,6 @@ class olfactometer(QGroupBox):
         self.p_durOFF.valueChanged.connect(self.updateProgDurLabel)
         self.p_numRuns.valueChanged.connect(self.updateProgDurLabel)
         self.updateProgDurLabel()
-        
-    def additive_changed(self):
-        currentText = self.p_additiveSelect.currentText()
-        if currentText == 'Additive vials':
-            self.p_vialSelect1.setEnabled(True)
-            self.p_vialSelect2.setEnabled(True)
-            self.p_spType.setCurrentIndex(0)
-            self.p_spType.setEnabled(False)
-        if currentText == 'One vial':
-            self.p_vialSelect1.setEnabled(True)
-            self.p_vialSelect2.setEnabled(False)
-            self.p_spType.setEnabled(True)
-            
-    def spType_changed(self):
-        currentText = self.p_spType.currentText()
-        if currentText == 'Constant':
-            self.p_spOrder.setEnabled(False)
-            self.p_sp.setEnabled(True)
-            self.p_sp2.setEnabled(False)
-        if currentText == 'Varied':
-            self.p_spOrder.setEnabled(True)
-            self.p_sp.setEnabled(False)
-            self.p_sp2.setEnabled(True)
     
     def programStartClicked(self, checked):
         if checked:
@@ -874,6 +847,72 @@ class olfactometer(QGroupBox):
             self.logger.info('program stopped early by user')
             self.threadIsFinished()
     
+    
+    def sendThisSetpoint(self, slave:str, vial:int, sccmVal:int):
+        # find dictionary to use
+        for i in range(self.numSlaves):
+            if self.slaves[i].slaveName == slave: s_index = i
+        v_index = vial - 1
+        sensDictName = self.slaves[s_index].vials[v_index].sensDict
+        dictToUse = self.sccm2Ard_dicts.get(sensDictName)
+        
+        # convert to integer and send
+        ardVal = utils.convertToInt(float(sccmVal),dictToUse)
+        self.sendParameter(slave,vial,'Sp',str(ardVal))
+
+    def send_OpenValve(self, slave:str, vial:int, dur:int):
+        self.sendParameter(slave,vial,'OV',str(dur))
+
+    def threadIsFinished(self):
+        self.obj.threadON = False
+        self.thread1.exit()
+        self.programStartButton.setChecked(False);  self.programStartButton.setText('Start')
+        self.progSettingsBox.setEnabled(True)
+        self.logger.info('Finished program')
+        self.progBar.setValue(0)
+
+    
+    # INTERFACE FUNCTIONS
+    def updateMode(self):
+        self.mode = self.modeCb.currentText()
+
+        for s in self.slaves:
+            for v in s.vials:
+                if self.mode == 'auto': 
+                    v.changeMode('auto')
+                if self.mode == 'manual':
+                    v.changeMode('manual')
+            s.resize(s.sizeHint())
+        self.allSlavesWid.resize(self.allSlavesWid.sizeHint())
+        self.slaveScrollArea.resize(self.slaveScrollArea.sizeHint())
+        #self.slaveGroupBox.resize(self.slaveGroupBox.sizeHint())
+        #self.resize(self.sizeHint())
+        #widget_width = self.slaves[0].width()
+        #widget_height = self.slaves[0].height() + self.slaves[1].height()
+    
+    def additive_changed(self):
+        currentText = self.p_additiveSelect.currentText()
+        if currentText == 'Additive vials':
+            self.p_vialSelect1.setEnabled(True)
+            self.p_vialSelect2.setEnabled(True)
+            self.p_spType.setCurrentIndex(0)
+            self.p_spType.setEnabled(False)
+        if currentText == 'One vial':
+            self.p_vialSelect1.setEnabled(True)
+            self.p_vialSelect2.setEnabled(False)
+            self.p_spType.setEnabled(True)
+            
+    def spType_changed(self):
+        currentText = self.p_spType.currentText()
+        if currentText == 'Constant':
+            self.p_spOrder.setEnabled(False)
+            self.p_sp.setEnabled(True)
+            self.p_sp2.setEnabled(False)
+        if currentText == 'Varied':
+            self.p_spOrder.setEnabled(True)
+            self.p_sp.setEnabled(False)
+            self.p_sp2.setEnabled(True)
+    
     def updateProgDurLabel(self):
         # still not done for additive
 
@@ -897,50 +936,11 @@ class olfactometer(QGroupBox):
         #self.progDurLbl.setText(str(totalDur) + " seconds --> " + str(totalDur_min) + " min, " + str(totalDur_sec) + " sec")
         self.progDurLbl.setText(str(totalDur_min) + " min, " + str(totalDur_sec) + " sec")
     
+    def incProgBar(self, val):
+        self.progBar.setValue(val)
     
-    def sendThisSetpoint(self, slave:str, vial:int, sccmVal:int):
-        # find dictionary to use
-        for i in range(self.numSlaves):
-            if self.slaves[i].slaveName == slave: s_index = i
-        v_index = vial - 1
-        sensDictName = self.slaves[s_index].vials[v_index].sensDict
-        dictToUse = self.sccm2Ard_dicts.get(sensDictName)
-        
-        # convert to integer and send
-        ardVal = utils.convertToInt(float(sccmVal),dictToUse)
-        self.sendParameter(slave,vial,'Sp',str(ardVal))
 
-    def send_OpenValve(self, slave:str, vial:int, dur:int):
-        #dur = self.dur_ON
-        self.sendParameter(slave,vial,'OV',str(dur))
 
-    def threadIsFinished(self):
-        self.obj.threadON = False
-        self.thread1.exit()
-        self.programStartButton.setChecked(False);  self.programStartButton.setText('Start')
-        self.progSettingsBox.setEnabled(True)
-        self.logger.info('Finished program')
-        self.progBar.setValue(0)
-
-    # INTERFACE FUNCTIONS
-    def updateMode(self):
-        self.mode = self.modeCb.currentText()
-
-        for s in self.slaves:
-            for v in s.vials:
-                if self.mode == 'auto': 
-                    v.changeMode('auto')
-                if self.mode == 'manual':
-                    v.changeMode('manual')
-            s.resize(s.sizeHint())
-        self.allSlavesWid.resize(self.allSlavesWid.sizeHint())
-        self.slaveScrollArea.resize(self.slaveScrollArea.sizeHint())
-        #self.slaveGroupBox.resize(self.slaveGroupBox.sizeHint())
-        #self.resize(self.sizeHint())
-        #widget_width = self.slaves[0].width()
-        #widget_height = self.slaves[0].height() + self.slaves[1].height()
-    
-    
     # ACTUAL FUNCTIONS THE THING NEEDS
     def receive(self):
         if self.serial.canReadLine() == True:
@@ -1023,10 +1023,6 @@ class olfactometer(QGroupBox):
         except AttributeError as err:
             self.logger.warning('Serial port not open, cannot send parameter: %s', str_send)
     
-    def incProgBar(self, val):
-        self.progBar.setValue(val)
-
-
     def startCalibration(self):
         self.masterBox.setEnabled(False)
         self.vialProgrammingBox.setEnabled(False)
