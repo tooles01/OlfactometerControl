@@ -1,9 +1,16 @@
-// ST 2020
-// slave_B.ino
+/*
+  slave_B.ino
+  
+  Version:  0.1.0
+  Author:   S.Toole
+  
+*/
 
 #include <Wire.h>
-#include <C:\Users\shann\Dropbox\OlfactometerEngineeringGroup\Control\software\OlfactometerControl\olfactometer\config_master.h>
-#include <C:\Users\shann\Dropbox\OlfactometerEngineeringGroup\Control\software\OlfactometerControl\olfactometer\config_slave.h>
+#include <C:\Users\shann\Dropbox (NYU Langone Health)\OlfactometerEngineeringGroup (2)\Control\a_software\OlfactometerControl\olfactometer\config_master.h>
+#include <C:\Users\shann\Dropbox (NYU Langone Health)\OlfactometerEngineeringGroup (2)\Control\a_software\OlfactometerControl\olfactometer\config_slave.h>
+//#include <C:\Users\SB13FLPC016\Dropbox (NYU Langone Health)\RinbergLab\OlfactometerEngineeringGroup\Control\a_software\OlfactometerControl\olfactometer\config_master.h>
+//#include <C:\Users\SB13FLPC016\Dropbox (NYU Langone Health)\RinbergLab\OlfactometerEngineeringGroup\Control\a_software\OlfactometerControl\olfactometer\config_slave.h>
 
 const int slaveIndex = 1;
 const int slaveAddress = slaveAddresses[slaveIndex];
