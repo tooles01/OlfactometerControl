@@ -1,14 +1,16 @@
 /*
   master.ino
   
-  Version:  0.1.0
+  Version:  0.2.0
   Author:   S.Toole
   
+  Notes:    Update to communication strings. New string format allows multiple slave/vial updates with a single command.
+            First character: 'M' indicates master settings update. 'S' indicates data to send to slave
 */
 
 #include <Wire.h>
-//#include <C:\Users\shann\Dropbox\OlfactometerEngineeringGroup\Control\software\github repo\config_master.h>
-#include <C:\Users\SB13FLPC016\Dropbox (NYU Langone Health)\RinbergLab\OlfactometerEngineeringGroup\Control\software\OlfactometerControl\olfactometer\config_master.h>
+#include <C:\Users\shann\Dropbox (NYU Langone Health)\OlfactometerEngineeringGroup (2)\Control\a_software\OlfactometerControl\olfactometer\config_master.h>
+//#include <C:\Users\SB13FLPC016\Dropbox (NYU Langone Health)\RinbergLab\OlfactometerEngineeringGroup\Control\software\OlfactometerControl\olfactometer\config_master.h>
 
 typedef struct {
   char slaveName;
@@ -54,8 +56,8 @@ void loop() {
   
 }
 
+
 void parseSerial(String inString) {
-  int strLen = inString.length();
   char firstChar = inString[0];
   
   if (firstChar == 'M') {
@@ -90,8 +92,60 @@ void parseSerial(String inString) {
       }
     }
   }
+
+  else if (firstChar == 'S') {
+    // parse out parameter
+    String paramToSend = inString;
+    int us_idx = paramToSend.indexOf('_');       paramToSend.remove(0,us_idx+1);
+    int us_Lidx = paramToSend.lastIndexOf('_');  paramToSend.remove(us_Lidx+1);
+        
+    int lastUS_idx = inString.lastIndexOf('_');
+    String vialList = inString;
+    vialList.remove(0,lastUS_idx+1);
     
+    for (int s=0;s<numSlaves;s++) {
+      char slaveName = arr_slaves[s].slaveName;
+      int s_idx = vialList.indexOf(slaveName);
+
+      // if slaveName is in vialList
+      if (s_idx!=-1) {
+        
+        // get vial numbers
+        String thisSlaveVials = vialList;
+        
+        if (s!=numSlaves-1) {
+          int ns_idx;
+          for (int ns=s+1;ns<numSlaves;ns++) {
+            char ns_name = arr_slaves[ns].slaveName;
+            ns_idx = thisSlaveVials.indexOf(ns_name);
+            if (ns_idx!=-1) {
+              thisSlaveVials.remove(ns_idx);  // if another slave is present after this one
+              break;
+            }
+          }
+        }
+        
+        thisSlaveVials.remove(0,s_idx+1); // start at 0, remove everything before/including this slaveName
+
+        // send message to slave
+        String toSend = paramToSend + thisSlaveVials;
+        
+        int cArrSize = toSend.length()+1;
+        char charArr[cArrSize];
+        toSend.toCharArray(charArr,cArrSize);
+        int slaveToSendTo = arr_slaves[s].slaveAddress;
+
+        Wire.beginTransmission(slaveToSendTo);
+        Wire.write(charArr);
+        Wire.endTransmission();
+      }
+    
+    }
+  }
+  
   else {
+    // unknown string received
+    /*
     int slaveToSendTo;
     int cArrSize = strLen+1;
     char charArr[cArrSize];
@@ -104,6 +158,7 @@ void parseSerial(String inString) {
     Wire.beginTransmission(slaveToSendTo);
     Wire.write(charArr);
     Wire.endTransmission();
+    */
   }
 }
 

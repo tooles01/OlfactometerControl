@@ -1,16 +1,18 @@
 /*
   slave_A.ino
   
-  Version:  0.1.0
+  Version:  0.2.0
   Author:   S.Toole
   
+  Notes:    Update to communication strings. New string format allows multiple slave/vial updates with a single command.
+            first two characters: receivedParam
+            chars 3-last underscore: valueString
+            last underscore-end: vialsToUpdate
 */
 
 #include <Wire.h>
 #include <C:\Users\shann\Dropbox (NYU Langone Health)\OlfactometerEngineeringGroup (2)\Control\a_software\OlfactometerControl\olfactometer\config_master.h>
 #include <C:\Users\shann\Dropbox (NYU Langone Health)\OlfactometerEngineeringGroup (2)\Control\a_software\OlfactometerControl\olfactometer\config_slave.h>
-//#include <C:\Users\SB13FLPC016\Dropbox (NYU Langone Health)\RinbergLab\OlfactometerEngineeringGroup\Control\a_software\OlfactometerControl\olfactometer\config_master.h>
-//#include <C:\Users\SB13FLPC016\Dropbox (NYU Langone Health)\RinbergLab\OlfactometerEngineeringGroup\Control\a_software\OlfactometerControl\olfactometer\config_slave.h>
 
 const int slaveIndex = 0;
 const int slaveAddress = slaveAddresses[slaveIndex];
@@ -112,101 +114,114 @@ void receiveEvent() {
     vialToSendNext = receivedStr[1];
     vialToSendNext = vialToSendNext-'0';  // convert to int
   }
+  
   else {
     unsigned long timeReceived = millis();
     String receivedParam = "";
-    char vial2Update = receivedStr[1];
-    receivedParam += receivedStr[3];
-    receivedParam += receivedStr[4];
-    int vialToUpdate = vial2Update-'0'; // convert from char to int
-    int vialIndex = vialToUpdate-1;
-    String valueString = receivedStr;
-    valueString.remove(0,6);    // starting at index 0, remove 5 chars (everything before actual value)
-    
-    arr_vials[vialIndex].timeReceived = timeReceived;
-    int valueLength = valueString.length();
-    
-    if (receivedParam == "Kx") {
-      int Pindex = valueString.indexOf('P');
-      int Iindex = valueString.indexOf('I');
-      int Dindex = valueString.indexOf('D');
-      if (Pindex >=0) {
-        String Pvalue = valueString;
-        Pvalue.remove(0,Pindex+1);            // starting at index 0, remove everything before value
-        int indexOfUS = Pvalue.indexOf('_');  // find next underscore (marks end of value)
-        Pvalue.remove(indexOfUS);             // remove underscore and everything after
-        float Kp = Pvalue.toFloat();
-        arr_vials[vialIndex].Kp = Kp;
-      }
-      if (Iindex >=0) {
-        String Ivalue = valueString;
-        Ivalue.remove(0,Iindex+1);
-        int indexOfUS = Ivalue.indexOf('_');
-        Ivalue.remove(indexOfUS);
-        float Ki = Ivalue.toFloat();
-        arr_vials[vialIndex].Ki = Ki;
-      }
-      if (Dindex >=0) {
-        String Dvalue = valueString;
-        Dvalue.remove(0,Dindex+1);
-        int indexOfUS = Dvalue.indexOf('_');
-        Dvalue.remove(indexOfUS);
-        float Kd = Dvalue.toFloat();
-        arr_vials[vialIndex].Kd = Kd;
-      }
-    }
-    else if (receivedParam == "Sp") {
-      float newSetpoint = valueString.toFloat();
-      arr_vials[vialIndex].setpoint = newSetpoint;
-    }
-    else if (receivedParam == "OV") {
-      digitalWrite(arr_vials[vialIndex].valvPin, HIGH);
-      arr_vials[vialIndex].valveState = HIGH;
-      if (arr_vials[vialIndex].PIDon == false) {
-        arr_vials[vialIndex].PIDon = true;
-        arr_vials[vialIndex].prevTime = millis(); // need a time for the PID to start at
-      }
 
-      int lengthToOpen;
-      if (valueLength > 0) {
-        float lengthOpen_s = valueString.toFloat();
-        float lengthOpen_ms = lengthOpen_s*1000;
-        if (lengthOpen_ms < maxValveOpenTime) {
-          lengthToOpen = lengthOpen_ms;
+    // Parse receivedStr
+    receivedParam += receivedStr[0];
+    receivedParam += receivedStr[1];
+    int lastUS_idx = receivedStr.lastIndexOf('_');    // find last underscore
+    String valueString = receivedStr;
+    valueString.remove(lastUS_idx);   // starting at last underscore, remove everything through the end
+    valueString.remove(0,3);          // starting at index 0, remove 3 chars
+    String vialsToUpdate = receivedStr;
+    vialsToUpdate.remove(0,lastUS_idx+1); // starting at index 0, remove everything before last underscore
+    
+    int numVialsToUpdate = vialsToUpdate.length();
+    for (int i=0; i<numVialsToUpdate;i++) {
+      char vialNum = vialsToUpdate[i];  // get vial number
+      int vialToUpdate = vialNum-'0';   // convert from char to int
+      int vialIndex = vialToUpdate-1;
+      
+      arr_vials[vialIndex].timeReceived = timeReceived;
+      int valueLength = valueString.length();
+      
+      if (receivedParam == "Kx") {
+        int Pindex = valueString.indexOf('P');
+        int Iindex = valueString.indexOf('I');
+        int Dindex = valueString.indexOf('D');
+        if (Pindex >=0) {
+          String Pvalue = valueString;
+          Pvalue.remove(0,Pindex+1);            // starting at index 0, remove everything before value
+          int indexOfUS = Pvalue.indexOf('_');  // find next underscore (marks end of value)
+          Pvalue.remove(indexOfUS);             // remove underscore and everything after
+          float Kp = Pvalue.toFloat();
+          arr_vials[vialIndex].Kp = Kp;
+        }
+        if (Iindex >=0) {
+          String Ivalue = valueString;
+          Ivalue.remove(0,Iindex+1);
+          int indexOfUS = Ivalue.indexOf('_');
+          Ivalue.remove(indexOfUS);
+          float Ki = Ivalue.toFloat();
+          arr_vials[vialIndex].Ki = Ki;
+        }
+        if (Dindex >=0) {
+          String Dvalue = valueString;
+          Dvalue.remove(0,Dindex+1);
+          int indexOfUS = Dvalue.indexOf('_');
+          Dvalue.remove(indexOfUS);
+          float Kd = Dvalue.toFloat();
+          arr_vials[vialIndex].Kd = Kd;
+        }
+      }
+      else if (receivedParam == "Sp") {
+        float newSetpoint = valueString.toFloat();
+        arr_vials[vialIndex].setpoint = newSetpoint;
+      }
+      else if (receivedParam == "OV") {
+        digitalWrite(arr_vials[vialIndex].valvPin, HIGH);
+        arr_vials[vialIndex].valveState = HIGH;
+        if (arr_vials[vialIndex].PIDon == false) {
+          arr_vials[vialIndex].PIDon = true;
+          arr_vials[vialIndex].prevTime = millis(); // need a time for the PID to start at
+        }
+  
+        int lengthToOpen;
+        if (valueLength > 0) {
+          float lengthOpen_s = valueString.toFloat();
+          float lengthOpen_ms = lengthOpen_s*1000;
+          if (lengthOpen_ms < maxValveOpenTime) {
+            lengthToOpen = lengthOpen_ms;
+          }
+          else {
+            lengthToOpen = maxValveOpenTime;
+          }
         }
         else {
           lengthToOpen = maxValveOpenTime;
         }
+        arr_vials[vialIndex].timeToClose = millis() + lengthToOpen;
+      }
+      else if (receivedParam == "CV") {
+        digitalWrite(arr_vials[vialIndex].valvPin, LOW);
+        arr_vials[vialIndex].valveState = LOW;
+      }
+      else if (receivedParam == "ON") {
+        arr_vials[vialIndex].PIDon = true;
+        arr_vials[vialIndex].prevTime = millis();
+      }
+      else if (receivedParam == "OF") {
+        arr_vials[vialIndex].PIDon = false;
+      }
+      else if (receivedParam == "OC") {
+        analogWrite(arr_vials[vialIndex].ctrlPin,255);
+        arr_vials[vialIndex].output = 255;
+      }
+      else if (receivedParam == "CC") {
+        analogWrite(arr_vials[vialIndex].ctrlPin, 0);
+        arr_vials[vialIndex].output = 0;
+        arr_vials[vialIndex].PIDon = false;
       }
       else {
-        lengthToOpen = maxValveOpenTime;
+        Serial.print("receivedStr [ "); Serial.print(receivedStr);
+        Serial.print("] contained unknown parameter ["); Serial.print(receivedParam); Serial.println("]");
       }
-      arr_vials[vialIndex].timeToClose = millis() + lengthToOpen;
+    
     }
-    else if (receivedParam == "CV") {
-      digitalWrite(arr_vials[vialIndex].valvPin, LOW);
-      arr_vials[vialIndex].valveState = LOW;
-    }
-    else if (receivedParam == "ON") {
-      arr_vials[vialIndex].PIDon = true;
-      arr_vials[vialIndex].prevTime = millis();
-    }
-    else if (receivedParam == "OF") {
-      arr_vials[vialIndex].PIDon = false;
-    }
-    else if (receivedParam == "OC") {
-      analogWrite(arr_vials[vialIndex].ctrlPin,255);
-      arr_vials[vialIndex].output = 255;
-    }
-    else if (receivedParam == "CC") {
-      analogWrite(arr_vials[vialIndex].ctrlPin, 0);
-      arr_vials[vialIndex].output = 0;
-      arr_vials[vialIndex].PIDon = false;
-    }
-    else {
-      Serial.print("receivedStr [ "); Serial.print(receivedStr);
-      Serial.print("] contained unknown parameter ["); Serial.print(receivedParam); Serial.println("]");
-    }
+  
   }
 }
 
