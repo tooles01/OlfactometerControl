@@ -1,5 +1,10 @@
-// ST 2020
-// master.ino
+/*
+  master.ino
+  
+  Version:  0.1.0
+  Author:   S.Toole
+  
+*/
 
 #include <Wire.h>
 //#include <C:\Users\shann\Dropbox\OlfactometerEngineeringGroup\Control\software\github repo\config_master.h>
