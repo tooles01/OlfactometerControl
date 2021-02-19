@@ -716,6 +716,10 @@ class olfactometer(QGroupBox):
         self.mainLayout.addWidget(self.masterBox, 0, 1, 1, 1)
         self.mainLayout.addWidget(self.calibrationBox, 1, 1, 1, 1)
         self.mainLayout.addWidget(self.vialProgrammingBox, 2, 1, 3, 1)
+        col2w = self.vialProgrammingBox.sizeHint().width()
+        self.masterBox.setMaximumWidth(col2w)
+        self.calibrationBox.setMaximumWidth(col2w)
+        self.vialProgrammingBox.setMaximumWidth(col2w)
         
         self.mainLayout.addWidget(self.slaveGroupBox, 0, 2, 4, 1)
         self.mainLayout.addWidget(self.bottomGroupBox, 4, 2, 1, 1)
