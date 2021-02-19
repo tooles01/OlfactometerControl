@@ -3,30 +3,25 @@
 
 import os, logging, glob, math
 from datetime import datetime
-import config
 
-currentDate = config.currentDate
-logFileName = config.logFileName
-fileHandlerLogLevel = config.fileHandlerLogLevel
-consoleHandlerLogLevel = config.consoleHandlerLogLevel
+currentDate = str(datetime.date(datetime.now()))
+logFileName = 'logFile.txt'
+fileHandlerLogLevel = logging.INFO
+consoleHandlerLogLevel = logging.DEBUG
 
 
 def findOlfEngGroup():
-    # find Dropbox\OlfactometerEngineeringGroup
     dropboxPath = os.path.expanduser('~\\Dropbox')
     oeg_list = glob.glob(dropboxPath + '/**/*OlfactometerEngineeringGroup*',recursive=True)
     if not oeg_list:
         dropboxPath = os.path.expanduser('~\\Dropbox (NYU Langone Health)')
         oeg_list = glob.glob(dropboxPath + '/**/*OlfactometerEngineeringGroup*',recursive=True)
-    oeg = oeg_list[0]
-
-    oegDirectory = oeg
-
+    oegDirectory = oeg_list[0]
+    
     return oegDirectory
 
 def findLogFolder():
     oeg = findOlfEngGroup()
-
     logfiles_list = glob.glob(oeg + '/**/*logfiles',recursive=True)
     logFileDirectory = logfiles_list[0]     # assuming there is only 1 logfiles folder there
 
@@ -34,10 +29,9 @@ def findLogFolder():
 
 def findOlfaConfigFolder():
     oeg = findOlfEngGroup()
-
     olfControl_list = glob.glob(oeg + '/**/*OlfactometerControl',recursive=True)
     olfaConfigDirectory = olfControl_list[0]
-    olfactometerFolder = olfaConfigDirectory + '\olfactometer'
+    olfactometerFolder = olfaConfigDirectory #+ '\olfactometer'
 
     return olfactometerFolder
 
@@ -50,10 +44,8 @@ def createLogger(name):
         os.mkdir(today_logDir)
 
     # if it's coming from my computer
-    if 'shann' in logDir:
-        logFileName = 'logfile_delete.txt'
-    else:
-        logFileName = 'logfile.txt'
+    if 'shann' in logDir:   logFileName = 'logfile_delete.txt'
+    else:                   logFileName = 'logfile.txt'
     
     # create logger
     os.chdir(today_logDir) # move into directory before creating logger (you can also move just before creating the filehandler, but I'd rather do it here)
@@ -61,6 +53,7 @@ def createLogger(name):
     logger.setLevel(logging.DEBUG)
 
     # formatters
+    #file_formatter = logging.Formatter('%(asctime)s.%(msecs)03d, %(name)-14s :%(levelname)-8s: %(message)s',datefmt='%H:%M:%S')
     file_formatter = logging.Formatter('%(asctime)s.%(msecs)03d : %(name)-14s :%(levelname)-8s: %(message)s',datefmt='%H:%M:%S')
     console_formatter = logging.Formatter('%(name)-14s: %(levelname)-8s: %(message)s')
     
@@ -81,7 +74,7 @@ def createLogger(name):
     if anythingInIt == 0:   # if logfile is empty
         logger.info('~~ Log File for %s ~~', currentDate)
         logger.info('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-    
+
     return logger
 
 def getArduinoConfigFile(fileName):
@@ -122,8 +115,6 @@ def getArduinoConfigFile(fileName):
     
     return newDict
 
-
-
 def makeNewFileName(fileType, lastExpNum):
     newExpNum = lastExpNum + 1
     newExpNum = str(newExpNum).zfill(2)
@@ -159,6 +150,7 @@ def convertToSCCM(ardVal, dictionary):
     return val_SCCM
 
 def convertToInt(SCCMval, dictionary):
+    SCCMval = float(SCCMval)
     if SCCMval in dictionary:   ardVal = dictionary.get(SCCMval)
     else:
         minVal = min(dictionary)
@@ -191,7 +183,6 @@ def convertToInt(SCCMval, dictionary):
     ardVal = round(ardVal)
     return int(ardVal)
 
-
 def getTimeNow():
     timeNow = datetime.time(datetime.now())         # type: 'datetime.time'
     timeNow_f = timeNow.strftime('%H:%M:%S.%f')     # type: 'str'
@@ -200,14 +191,14 @@ def getTimeNow():
     return timeNow_str
 
 
+
+'''
 def writeToFile(vial, param, flow, ctrl):
     timeNow = getTimeNow()
     strToWrite = timeNow,vial,param,flow,ctrl
     
     return strToWrite
 
-
-'''
 def convToList(numVals, listToConv):
     inString = listToConv[1:len(listToConv)-1]
     result = [x.strip() for x in inString.split(',')]
