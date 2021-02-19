@@ -245,11 +245,10 @@ class Vial(QObject):
     def new_calTable(self):
         newCalTable = self.calTable_widget.currentText()
         self.calTable = newCalTable
+        print('Vial ' + self.name  + ' new cal table:  '+ self.calTable)
         self.intToSccm_dict = self.parent.parent.sccm2Ard_dicts.get(self.calTable)
 
     def new_setpoint(self, sccmVal):
-        #newSetpoint = sccmVal
-        #self.setpoint = newSetpoint
         self.setpoint = self.vialDebugWindow.setpoint_wid.value()
         param = 'Sp'
         intVal = utils.convertToInt(self.setpoint, self.intToSccm_dict)
@@ -461,12 +460,9 @@ class Vial(QObject):
 
         flowVal = int(flowValue)
         sccmVal = utils.convertToSCCM(flowVal, self.intToSccm_dict)
-        #s_dict = self.parent.ard2Sccm_dicts.get(self.sensDict)
-        #val_SCCM = utils.convertToSCCM(flowVal,s_dict)
         
         dataStr = str(flowValue) + '\t' + str(sccmVal) + '\t' + str(ctrlValue)
-        self.receiveBox.append(dataStr)
-        #self.dataReceiveBox.append(str(flowVal))
+        self.dataReceiveBox.append(dataStr)
 
 
 class Slave(QGroupBox):
@@ -808,20 +804,22 @@ class olfactometer(QGroupBox):
 
         self.rawReadDisplay = QTextEdit(readOnly=True)
         readLayout = QVBoxLayout()
-        readLayout.addWidget(QLabel(text="raw data from serial port:"))
+        readLayout.addWidget(QLabel('raw data from serial port:'))
         readLayout.addWidget(self.rawReadDisplay)
-        self.rawReadSpace = QWidget();  self.rawReadSpace.setLayout(readLayout)
         
         self.rawWriteDisplay = QTextEdit(readOnly=True)
         writeLayout = QVBoxLayout()
-        writeLayout.addWidget(QLabel(text="wrote to serial port:"))
+        writeLayout.addWidget(QLabel('wrote to serial port:'))
         writeLayout.addWidget(self.rawWriteDisplay)
-        self.rawWriteSpace = QWidget(); self.rawWriteSpace.setLayout(writeLayout)
+        
+        receive_space = QHBoxLayout()
+        receive_space.addLayout(readLayout)
+        receive_space.addLayout(writeLayout)
         
         self.connectBoxLayout = QFormLayout()
         self.connectBoxLayout.addRow(QLabel(text="Port/Device:"),self.portWidget)
         self.connectBoxLayout.addRow(self.refreshButton,self.connectButton)
-        self.connectBoxLayout.addRow(self.rawReadSpace,self.rawWriteSpace)
+        self.connectBoxLayout.addRow(receive_space)
         self.connectBox.setLayout(self.connectBoxLayout)
         self.getPorts()
 
