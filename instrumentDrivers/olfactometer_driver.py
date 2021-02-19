@@ -116,8 +116,8 @@ class Vial(QObject):
         self.Kd = Kd
 
         self.name = self.parent.slaveName + str(self.vialNum)
-        
-        self.intToSccm_dict = self.parent.parent.sccm2Ard_dicts.get(self.calTable)
+        self.intToSccm_dict = self.parent.parent.ard2Sccm_dicts.get(self.calTable)
+        self.sccmToInt_dict = self.parent.parent.sccm2Ard_dicts.get(self.calTable)
 
         self.generate_ui_features()
 
@@ -134,7 +134,7 @@ class Vial(QObject):
         self.calTable_widget = QComboBox()
         self.calTable_widget.addItems(self.parent.parent.ard2Sccm_dicts)
         self.calTable_widget.setCurrentText(self.calTable)
-        self.calTable_widget.currentIndexChanged.connect(self.new_calTable)
+        self.calTable_widget.currentIndexChanged.connect(lambda: self.new_calTable(self.calTable_widget.currentText()))
 
         self.setpoint_widget = QSpinBox(maximum=maxSp,value=self.setpoint)
         self.setpoint_sendBtn = QPushButton(text='Send Sp')
@@ -146,7 +146,6 @@ class Vial(QObject):
         self.setpoint_widget.setMaximumWidth(80)
         self.setpoint_sendBtn.setMaximumWidth(80)
         self.vialDebugBtn.setMaximumWidth(80)
-        #self.dataReceiveBox.setMaximumWidth(100)
 
 
     def create_vial_debug_window(self):
@@ -156,7 +155,6 @@ class Vial(QObject):
         # Flow Calibration Table
         self.vialDebugWindow.calTable_wid = QComboBox(toolTip='Updates immediately')
         self.vialDebugWindow.calTable_wid.addItems(self.parent.parent.ard2Sccm_dicts)
-        #self.vialDebugWindow.calTable_wid.currentIndexChanged.connect(self.new_calTable)
         self.vialDebugWindow.calTable_wid.currentIndexChanged.connect(lambda: self.new_calTable(self.vialDebugWindow.calTable_wid.currentText()))
 
         # Setpoint
@@ -177,7 +175,7 @@ class Vial(QObject):
         openValve_layout.addWidget(self.vialDebugWindow.openValve_widget)
         openValve_layout.addWidget(self.vialDebugWindow.openValve_sendBtn)
         
-        self.vialDebugWindow.doneBtn = QPushButton('Done')
+        self.vialDebugWindow.doneBtn = QPushButton(text='Done', toolTip='Close window')
         self.vialDebugWindow.doneBtn.clicked.connect(lambda: self.vialDebugWindow.hide())
 
         # Flow control parameters
@@ -244,13 +242,14 @@ class Vial(QObject):
     def new_calTable(self, newTable):
         newCalTable = newTable
         self.calTable = newCalTable
-        self.intToSccm_dict = self.parent.parent.sccm2Ard_dicts.get(self.calTable)
+        self.intToSccm_dict = self.parent.parent.ard2Sccm_dicts.get(self.calTable)
+        self.sccmToInt_dict = self.parent.parent.sccm2Ard_dicts.get(self.calTable)
         print('Vial ' + self.name  + ' new cal table:  '+ self.calTable)
         
     def new_setpoint(self, sccmVal):
         self.setpoint = self.vialDebugWindow.setpoint_wid.value()
         param = 'Sp'
-        intVal = utils.convertToInt(self.setpoint, self.intToSccm_dict)
+        intVal = utils.convertToInt(self.setpoint, self.sccmToInt_dict)
         self.sendP(param, intVal)
         
     def open_vial(self, dur):
