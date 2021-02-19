@@ -142,7 +142,6 @@ class Vial(QObject):
 
         self.program_button = QPushButton(text=self.name, checkable=True)
         
-
         self.mainBtn.setMaximumWidth(50)
         self.setpoint_widget.setMaximumWidth(80)
         self.setpoint_sendBtn.setMaximumWidth(80)
@@ -157,7 +156,8 @@ class Vial(QObject):
         # Flow Calibration Table
         self.vialDebugWindow.calTable_wid = QComboBox(toolTip='Updates immediately')
         self.vialDebugWindow.calTable_wid.addItems(self.parent.parent.ard2Sccm_dicts)
-        self.vialDebugWindow.calTable_wid.currentIndexChanged.connect(self.new_calTable)
+        #self.vialDebugWindow.calTable_wid.currentIndexChanged.connect(self.new_calTable)
+        self.vialDebugWindow.calTable_wid.currentIndexChanged.connect(lambda: self.new_calTable(self.vialDebugWindow.calTable_wid.currentText()))
 
         # Setpoint
         self.vialDebugWindow.setpoint_wid = QSpinBox(maximum=maxSp,value=self.setpoint)
@@ -188,7 +188,6 @@ class Vial(QObject):
         self.vialDebugWindow.Kp_send = QPushButton(text='Send', clicked=lambda: self.sendP('Kp',self.vialDebugWindow.Kp_wid.text()))
         self.vialDebugWindow.Ki_send = QPushButton(text='Send', clicked=lambda: self.sendP('Ki',self.vialDebugWindow.Ki_wid.text()))
         self.vialDebugWindow.Kd_send = QPushButton(text='Send', clicked=lambda: self.sendP('Kd',self.vialDebugWindow.Kd_wid.text()))
-        #self.vialDebugWindow.Kall_send = QPushButton(text="Send all K vals",clicked=lambda: self.sendAllK('Kx',KpEnter.text(),KiEnter.text(),KdEnter.text()))
         KpRow = QHBoxLayout();  KpRow.addWidget(QLabel('Kp:'));   KpRow.addWidget(self.vialDebugWindow.Kp_wid);   KpRow.addWidget(self.vialDebugWindow.Kp_send)
         KiRow = QHBoxLayout();  KiRow.addWidget(QLabel('Ki:'));   KiRow.addWidget(self.vialDebugWindow.Ki_wid);   KiRow.addWidget(self.vialDebugWindow.Ki_send)
         KdRow = QHBoxLayout();  KdRow.addWidget(QLabel('Kd:'));   KdRow.addWidget(self.vialDebugWindow.Kd_wid);   KdRow.addWidget(self.vialDebugWindow.Kd_send)
@@ -242,12 +241,12 @@ class Vial(QObject):
         strToSend = param + '_' + value + '_' + vialStr
         self.parent.parent.sendThisArray(strToSend)
     
-    def new_calTable(self):
-        newCalTable = self.calTable_widget.currentText()
+    def new_calTable(self, newTable):
+        newCalTable = newTable
         self.calTable = newCalTable
-        print('Vial ' + self.name  + ' new cal table:  '+ self.calTable)
         self.intToSccm_dict = self.parent.parent.sccm2Ard_dicts.get(self.calTable)
-
+        print('Vial ' + self.name  + ' new cal table:  '+ self.calTable)
+        
     def new_setpoint(self, sccmVal):
         self.setpoint = self.vialDebugWindow.setpoint_wid.value()
         param = 'Sp'
@@ -388,32 +387,6 @@ class Vial(QObject):
         flowTuningBoxLayout.addRow(KdRow)
         flowTuningBoxLayout.addRow(SendAllButton)
         self.flowTuningBox.setLayout(flowTuningBoxLayout)
-    '''
-    '''
-    def createDebugBox(self):
-        self.debugBox = QGroupBox("debugging")
-
-        self.PIDToggle = QPushButton(text="Turn PID on",checkable=True,toggled=self.toggled_PID)
-        self.CtrlToggle = QPushButton(text="Open prop valve",checkable=True,toggled=self.toggled_ctrlOpen)
-        self.VlToggle = QPushButton(text="Open Iso Valve",checkable=True,toggled=self.toggled_valveOpen)
-
-        layout = QVBoxLayout()
-        layout.addWidget(self.PIDToggle)
-        layout.addWidget(self.CtrlToggle)
-        layout.addWidget(self.VlToggle)
-        self.debugBox.setLayout(layout)
-    '''
-    '''
-    def createDataReceiveBoxes(self):
-        #self.dataReceiveBox = QGroupBox("data received")
-        self.dataReceiveBox = QWidget()
-
-        self.receiveBox = QTextEdit(readOnly=True)
-        layout = QVBoxLayout()
-        layout.addWidget(QLabel(text="Flow val (int), Flow (SCCM), Ctrl val (int)"))
-        layout.addWidget(self.receiveBox)
-
-        self.dataReceiveBox.setLayout(layout)
     '''
     
     
