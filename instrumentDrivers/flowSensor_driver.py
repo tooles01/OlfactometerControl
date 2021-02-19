@@ -3,16 +3,14 @@
 
 # for Honeywell 5100V
 
-import csv, os, time, serial, sip
-from datetime import datetime
+import os, time, serial
 from PyQt5 import QtCore, QtSerialPort
-from PyQt5.QtWidgets import (QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QTextEdit, QWidget,
-                             QLabel, QLineEdit, QPushButton, QScrollArea, QVBoxLayout)
+from PyQt5.QtWidgets import *
 from serial.tools import list_ports
-import config, utils
+import utils
 
 currentDate = utils.currentDate
-noPortMsg = config.noPortMsg
+noPortMsg = ' ~ No COM ports detected ~'
 
 flowSens_baud = 9600
 sensorType = "Honeywell 5101V"
@@ -31,7 +29,6 @@ class flowSensor(QGroupBox):
         self.logger = utils.createLogger(loggerName)
 
         self.createConnectBox()
-        self.connectBox.setFixedWidth(325)
         self.createDataReceiveBoxes()
 
         mainLayout = QHBoxLayout()
