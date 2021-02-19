@@ -681,7 +681,7 @@ class olfactometer(QGroupBox):
         # Create UI
         self.generate_ui()
         
-        self.setTitle(self.className + ':' + self.name)
+        self.setTitle(self.className + ': ' + self.name)
         
         self.connectButton.setChecked(False)
         self.refreshButton.setEnabled(True)
@@ -702,7 +702,6 @@ class olfactometer(QGroupBox):
 
         self.createMasterBox()
         self.createCalibrationBox()
-        #self.createFlowSettingsBox()
         self.createVialProgrammingBox()
         self.createBottomGroupBox()
 
@@ -723,6 +722,9 @@ class olfactometer(QGroupBox):
         
         self.mainLayout.addWidget(self.slaveGroupBox, 0, 2, 4, 1)
         self.mainLayout.addWidget(self.bottomGroupBox, 4, 2, 1, 1)
+        col3w = self.slaveGroupBox.sizeHint().width()
+        self.slaveGroupBox.setMaximumWidth(col3w)
+        self.bottomGroupBox.setMaximumWidth(col3w)
 
         self.setLayout(self.mainLayout)
         
@@ -928,20 +930,6 @@ class olfactometer(QGroupBox):
         self.calibrationBox.setLayout(layout)
 
         self.calStartBtn.clicked.connect(self.startCalibration)
-    
-    def createFlowSettingsBox(self):
-        self.flowSettingsBox = QGroupBox("Flow Control Mode")
-
-        modeLabel = QLabel("Flow control:")
-        self.modeCb = QComboBox()
-        self.modeCb.addItems(testingModes)
-        self.modeUpdate = QPushButton(text="Update",clicked=self.updateMode)
-
-        layout = QHBoxLayout()
-        layout.addWidget(modeLabel)
-        layout.addWidget(self.modeCb)
-        layout.addWidget(self.modeUpdate)
-        self.flowSettingsBox.setLayout(layout)
 
     def createSlaveGroupBox(self):
         self.slaveGroupBox = QGroupBox('Slave Devices')
