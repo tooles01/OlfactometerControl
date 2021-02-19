@@ -6,11 +6,10 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QObject
 import sip
 from instrumentDrivers import olfactometer_driver, flowSensor_driver, NI_DAQ_driver
-import utils, config
+import utils
 
-currentDate = config.currentDate
+currentDate = utils.currentDate
 datafileLbl = 'exp01'
-#delimChar = config.delimChar
 delimChar = ','
 dataFileType = ".csv"
 
@@ -58,10 +57,6 @@ class channelGroupBoxObject(QGroupBox):
         self.checkBox = QCheckBox(checked=True)
         self.checkBoxLbl = QLabel(text=self.name)
 
-        className = type(self).__name__
-        loggerName = className + ' (' + self.name + ')'
-        self.logger = utils.createLogger(loggerName)
-        
         self.createInstrumentWidget()
 
     # FUNCTIONS TO CREATE GUI
@@ -73,12 +68,11 @@ class channelGroupBoxObject(QGroupBox):
         elif self.instrument == 'NI-DAQ':
             self.instrument_widget = NI_DAQ_driver.NiDaq(self.name)
         else:
-            self.logger.error('No module exists for selected instrument: %s',self.instrument)
             self.instrument_widget = QGroupBox("empty widget for " + self.instrument)
 
 
 
-class mainGUI(QWidget):
+class mainGUI(QMainWindow):
 
     def __init__(self, channel_objs):
         super().__init__()
@@ -87,7 +81,7 @@ class mainGUI(QWidget):
         
         className = type(self).__name__
         self.logger = utils.createLogger(className)
-        
+
         self.createMainSettingsBox()
         self.createChannelSettingsBox()
         self.createDataFileBox()
@@ -108,9 +102,21 @@ class mainGUI(QWidget):
         self.mainLayout = QHBoxLayout()
         self.mainLayout.addLayout(col1)
         self.mainLayout.addWidget(self.channelGroupBox)
-        self.setLayout(self.mainLayout)
         self.setWindowTitle('mainGUI')
-    
+
+        self.central_widget = QWidget()
+        self.central_widget.setLayout(self.mainLayout)
+        self.setCentralWidget(self.central_widget)
+
+        # Menu Bar
+        self.menu_bar = self.menuBar()
+        self.olfaSettings_menu = self.menu_bar.addMenu('Olfa Settings')
+        self.olfaSettings_loadConf_action = self.olfaSettings_menu.addAction('Load olfa config file')
+        self.olfaSettings_loadConf_action.triggered.connect(self.load_olfa_config_file)
+        #self.olfaSettings_menu.addAction
+
+        self.info_menu = self.menu_bar.addMenu('Info')
+        
     
     # TO CREATE THE GUI
     def createMainSettingsBox(self):
@@ -161,30 +167,29 @@ class mainGUI(QWidget):
         self.channelUpdateBtn.clicked.connect(self.updateChannels)
 
     def createChannelGroupBox(self):
-        self.channelGroupBox = QGroupBox("Channels")
+        self.channelGroupBox = QGroupBox("Instrument Channels")
 
-        self.allChannels_layout = QVBoxLayout()
-        self.c_Rows = []
+        self.channelWidget_layout = QVBoxLayout()
+        self.inst_drivers = []
         for i in self.channels:
             c_name = i.name
             c_instrument = i.instrument
-            self.logger.debug('>> Creating channel for %s (%s)',c_instrument,c_name)
+            self.logger.info('>> Creating channel for %s (%s)',c_instrument,c_name)
             channel_groupbox = channelGroupBoxObject(c_name,c_instrument)
-            if c_instrument != 'olfactometer':
-                channel_groupbox.instrument_widget.setMaximumHeight(500)
-            self.c_Rows.append(channel_groupbox)
-            self.allChannels_layout.addWidget(channel_groupbox.instrument_widget)
+            if c_instrument != 'olfactometer':  channel_groupbox.instrument_widget.setMaximumHeight(500)
+            self.inst_drivers.append(channel_groupbox)
+            self.channelWidget_layout.addWidget(channel_groupbox.instrument_widget)
         
-        self.allChannelsWid = QWidget()
-        self.allChannelsWid.setLayout(self.allChannels_layout)
+        allChannelsWidget = QWidget()
+        allChannelsWidget.setLayout(self.channelWidget_layout)
         
-        self.allChannelsScrollArea = QScrollArea()
-        self.allChannelsScrollArea.setWidget(self.allChannelsWid)
-        self.allChannelsScrollArea.setWidgetResizable(True)
+        channelScrollArea = QScrollArea()
+        channelScrollArea.setWidget(allChannelsWidget)
+        channelScrollArea.setWidgetResizable(True)
 
-        self.cs_layout = QVBoxLayout()
-        self.cs_layout.addWidget(self.allChannelsScrollArea)
-        self.channelGroupBox.setLayout(self.cs_layout)
+        channelGroupBox_layout = QVBoxLayout()
+        channelGroupBox_layout.addWidget(channelScrollArea)
+        self.channelGroupBox.setLayout(channelGroupBox_layout)
     
     def createDataFileBox(self):
         self.dataFileBox = QGroupBox("DataFile")
@@ -260,33 +265,33 @@ class mainGUI(QWidget):
             self.channels.pop(-1)
 
     def updateChannels(self):
-        numPrev = len(self.c_Rows)
+        numPrev = len(self.inst_drivers)
         numNew = len(self.channels)
         self.logger.info('updating channels...')
 
         for idx in range(numPrev):  # for each of the previous channels
             if idx < numNew:        # if its a value within the newnum (will exist)
                 newName = self.channels[idx].nameWidget.text()
-                prevName = self.c_Rows[idx].name
+                prevName = self.inst_drivers[idx].name
                 newInst = self.channels[idx].instWidget.currentText()
-                prevInst = self.c_Rows[idx].instrument
+                prevInst = self.inst_drivers[idx].instrument
                 if newInst != prevInst:   # if instrument is different, make new
                     newChannel = channelGroupBoxObject(name=newName,instrument=newInst)
-                    self.allChannels_layout.removeWidget(self.c_Rows[idx].instrument_widget)
-                    sip.delete(self.c_Rows[idx].instrument_widget)
-                    self.c_Rows[idx] = newChannel
-                    self.allChannels_layout.insertWidget(idx,self.c_Rows[idx].instrument_widget)
+                    self.channelWidget_layout.removeWidget(self.inst_drivers[idx].instrument_widget)
+                    sip.delete(self.inst_drivers[idx].instrument_widget)
+                    self.inst_drivers[idx] = newChannel
+                    self.channelWidget_layout.insertWidget(idx,self.inst_drivers[idx].instrument_widget)
                 else:
                     if newName != prevName:           # if instrument is same but name is different
-                        self.c_Rows[idx].name = newName
-                        self.c_Rows[idx].instrument_widget.setTitle(newName)
+                        self.inst_drivers[idx].name = newName
+                        self.inst_drivers[idx].instrument_widget.setTitle(newName)
 
         if numPrev > numNew:        # delete extra channels
             num2Delete = numPrev - numNew
             for i in range(num2Delete):
-                self.allChannels_layout.removeWidget(self.c_Rows[-1].instrument_widget)
-                sip.delete(self.c_Rows[-1].instrument_widget)
-                self.c_Rows.pop(-1)
+                self.channelWidget_layout.removeWidget(self.inst_drivers[-1].instrument_widget)
+                sip.delete(self.inst_drivers[-1].instrument_widget)
+                self.inst_drivers.pop(-1)
         
         if numPrev < numNew:        # add new channels
             num2Make = numNew - numPrev
@@ -296,8 +301,8 @@ class mainGUI(QWidget):
                 self.channels[i+numPrev].name = newName
                 self.channels[i+numPrev].instrument = newInst
                 newChannel = channelGroupBoxObject(name=newName,instrument=newInst)
-                self.c_Rows.append(newChannel)
-                self.allChannels_layout.addWidget(newChannel.instrument_widget)
+                self.inst_drivers.append(newChannel)
+                self.channelWidget_layout.addWidget(newChannel.instrument_widget)
         
         self.logger.debug('finished updating channels')
     
@@ -346,7 +351,7 @@ class mainGUI(QWidget):
     def receiveDataFromChannels(self, instrument, unit, value):
         if self.recordButton.isChecked():
             toWrite = utils.getTimeNow(),instrument,unit,str(value)
-            for chan in self.c_Rows:
+            for chan in self.inst_drivers:
                 if chan.checkBoxLbl.text() in instrument:
                     if chan.checkBox.isChecked():
                         with open(self.enteredFileName,'a',newline='') as f:
@@ -355,12 +360,14 @@ class mainGUI(QWidget):
                         display = str(toWrite)
                         self.dataFileOutputBox.append(display[1:-1])
 
-
+    def load_olfa_config_file(self):
+        self.logger.info('not set up yet')
 
 if __name__ == "__main__":
     # Create logger
     mainLogger = utils.createLogger(__name__)
     logFileLoc = mainLogger.handlers[0].baseFilename
+    mainLogger.info('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
     mainLogger.info('Logging to %s', logFileLoc)
     
     app1 = QApplication(sys.argv)
@@ -375,3 +382,4 @@ if __name__ == "__main__":
     mainWindow.show()
 
     sys.exit(app1.exec_())
+    mainLogger.info('~~~~~~~~~~~~~~~done~~~~~~~~~~~~~~')
