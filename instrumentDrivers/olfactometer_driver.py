@@ -101,6 +101,75 @@ class VialInfoWindow(QWidget):
     def close_window(self):
         self.hide()
 '''
+#class calibration_worker(QObject):
+
+#    def _init__(self):
+
+
+class openValveTimer(QWidget):
+    
+    def __init__(self, parent, name=""):
+        super().__init__()
+        self.parent = parent
+        self.name = name
+        self.generate_ui()
+        self.hide()
+
+        self.duration = 1
+
+    def generate_ui(self):
+        if self.name:
+            self.setWindowTitle('open vial timer for ' + str(self.name))
+        else:
+            self.setWindowTitle('open vial timer')
+
+
+        self.theTimer = QTimer()
+        self.theTimer.timeout.connect(self.show_time)
+        
+        self.timeLabel = QLabel()
+        self.valveTimeLabel = QLabel()
+        self.stopBtn = QPushButton('Close valve')
+        self.stopBtn.clicked.connect(self.end_early)
+
+        layout = QFormLayout()
+        layout.addRow(QLabel('Current time:'), self.timeLabel)
+        layout.addRow(QLabel('time since valves were opened:'),self.valveTimeLabel)
+        layout.addRow(self.stopBtn)
+        self.setLayout(layout)
+        
+    def show_time(self):
+        curTime = datetime.now()
+        
+        curValveDur = curTime - self.valveOpenTime
+        if curValveDur >= self.valve_open_duration:
+            self.end_timer()
+            
+        curTimeDisplay = curTime.strftime("%H:%M:%S.%f")
+        curTimeDisplay = curTimeDisplay[:-3]
+        self.timeLabel.setText(curTimeDisplay)
+
+        valveDurDisplay = str(curValveDur)
+        self.valveTimeLabel.setText(valveDurDisplay)
+
+    def start_timer(self):
+        self.valveOpenTime = datetime.now()
+        self.valve_open_duration = timedelta(0, self.duration)
+        
+        updateFrequency = 50
+        self.theTimer.start(updateFrequency)
+    
+    def end_early(self):
+        self.theTimer.stop()
+        self.parent.closeVials()
+        self.hide()
+
+    def end_timer(self):
+        self.theTimer.stop()
+        self.parent.timer_finished()
+        self.hide()
+
+
 
 class Vial(QObject):
 
@@ -123,13 +192,23 @@ class Vial(QObject):
 
 
     def generate_ui_features(self):
-        self.create_vial_debug_window()
         
         self.OVcheckbox = QCheckBox(checkable=True, checked=False, toolTip='Apply update to this vial')
-        self.mainBtn = QPushButton(text=self.name, checkable=True, toolTip='Vial Status (open/closed)')
 
+        self.mainBtn = QPushButton(text=self.name, checkable=True, toolTip='Open vial for 5s')
+        self.mainBtn.clicked.connect(lambda: self.open_vial(defVl))
+
+        self.openVialTimer = openValveTimer(self, self.name)
+        
+        self.create_vial_debug_window()
+        self.create_vial_calibration_window()
+        
+        
         self.vialDebugBtn = QPushButton(text='Debug')
         self.vialDebugBtn.clicked.connect(lambda: self.vialDebugWindow.show())
+
+        self.vialCalibrateBtn = QPushButton(text='Calibrate', toolTip='Calibrate flow sensor')
+        self.vialCalibrateBtn.clicked.connect(lambda: self.vialCalibrateWindow.show())
         
         self.calTable_widget = QComboBox()
         self.calTable_widget.addItems(self.parent.parent.ard2Sccm_dicts)
@@ -156,6 +235,12 @@ class Vial(QObject):
         self.vialDebugWindow.calTable_wid = QComboBox(toolTip='Updates immediately')
         self.vialDebugWindow.calTable_wid.addItems(self.parent.parent.ard2Sccm_dicts)
         self.vialDebugWindow.calTable_wid.currentIndexChanged.connect(lambda: self.new_calTable(self.vialDebugWindow.calTable_wid.currentText()))
+        self.vialDebugWindow.newCalibrationBtn = QPushButton('Calibrate')
+        self.vialDebugWindow.newCalibrationBtn.clicked.connect(lambda: self.vialCalibrationWindow.show())
+        calibration_layout = QHBoxLayout()
+        calibration_layout.addWidget(QLabel('Calibration table:'))
+        calibration_layout.addWidget(self.vialDebugWindow.calTable_wid)
+        calibration_layout.addWidget(self.vialDebugWindow.newCalibrationBtn)
 
         # Setpoint
         self.vialDebugWindow.setpoint_wid = QSpinBox(maximum=maxSp,value=self.setpoint)
@@ -197,7 +282,7 @@ class Vial(QObject):
 
         # Manual debugging
         self.manualDebugBox = QGroupBox('Manual debug')
-        self.vialDebugWindow.PIDToggle = QPushButton(text="Turn PID on", checkable=True, toggled=self.toggled_PID)
+        self.vialDebugWindow.PIDToggle = QPushButton(text="Turn flow control on", checkable=True, toggled=self.toggled_PID)
         self.vialDebugWindow.CtrlToggle = QPushButton(text="Open prop valve", checkable=True, toggled=self.toggled_ctrlOpen)
         self.vialDebugWindow.VlToggle = QPushButton(text="Open Iso Valve", checkable=True, toggled=self.toggled_valveOpen)
         manualDebug_layout = QHBoxLayout()
@@ -207,7 +292,8 @@ class Vial(QObject):
         self.manualDebugBox.setLayout(manualDebug_layout)
 
         layout1 = QFormLayout()
-        layout1.addRow(QLabel('Calibration table:'),self.vialDebugWindow.calTable_wid)
+        #layout1.addRow(QLabel('Calibration table:'),self.vialDebugWindow.calTable_wid)
+        layout1.addRow(calibration_layout)
         layout1.addRow(setpoint_layout)
         layout1.addRow(openValve_layout)
         layout1.addRow(self.flowControlBox)
@@ -229,6 +315,72 @@ class Vial(QObject):
 
         self.vialDebugWindow.hide()
     
+    def create_vial_calibration_window(self):   # make this an offshoot of the debug window (so you can still see the incoming data)
+        self.vialCalibrationWindow = QWidget()
+        self.vialCalibrationWindow.setWindowTitle('Calibrate line ' + self.name)
+
+        calFile_name = self.name + '_' + currentDate
+        self.vialCalibrationWindow.calFile_name_wid = QLineEdit(text=calFile_name)
+
+        self.vialCalibrationWindow.startBtn = QPushButton('Start')
+        self.vialCalibrationWindow.startBtn.toggled.connect(self.start_calibration)
+
+        box1 = QGroupBox('Settings')
+        layout1 = QFormLayout()
+        #layout1.addRow(QLabel('Line: '), QLabel(self.name))
+        layout1.addRow(QLabel('File name: '), self.vialCalibrationWindow.calFile_name_wid)
+        layout1.addRow(self.vialCalibrationWindow.startBtn)
+        box1.setLayout(layout1)
+        
+
+        self.vialCalibrationWindow.flowVal_wid = QSpinBox(maximum=200, value=defSp) # this could be dependent on sensor type
+        self.vialCalibrationWindow.flowVal_get = QPushButton(text='Calibrate at this flow value', checkable=True, toggled=self.get_these_cal_values)
+        #self.cal_worker = calibration_worker()
+        
+        self.vialCalibrationWindow.box2 = QGroupBox('Calibrate')
+        layout2 = QFormLayout()
+        layout2.addRow(QLabel('Flow value:'), self.vialCalibrationWindow.flowVal_wid)
+        layout2.addRow(self.vialCalibrationWindow.flowVal_get)
+        self.vialCalibrationWindow.box2.setLayout(layout2)
+
+        self.vialCalibrationWindow.box2.setEnabled(False)
+        
+
+        layout = QVBoxLayout()
+        layout.addWidget(box1)
+        layout.addWidget(self.vialCalibrationWindow.box2)
+        self.vialCalibrationWindow.setLayout(layout)
+
+        self.vialCalibrationWindow.hide()
+
+    def start_calibration(self):
+        self.vialCalibrationWindow.box2.setEnabled(True)
+
+        print('create calibration file')
+
+    def get_these_cal_values(self):
+        cal_sccmValue = self.vialCalibrationWindow.flowVal_wid.value()
+        print('calibration at ' + cal_sccmValue + ' sccm: save to file')
+        
+        print('collect int values for 5 seconds')
+
+        print('average those values')
+
+        print('save new integer cal value')
+
+
+    # needs to match olfactometer function for openValveTimer
+    def closeVials(self):
+        param = 'CV'
+        value = '0'
+        self.sendP(param, value)
+        self.timer_finished()
+    
+    # needs to match olfactometer function for openValveTimer
+    def timer_finished(self):
+        self.mainBtn.setChecked(False)
+
+
 
     # USER ACTION    
     def sendP(self, param, value):
@@ -252,15 +404,24 @@ class Vial(QObject):
         intVal = utils.convertToInt(self.setpoint, self.sccmToInt_dict)
         self.sendP(param, intVal)
         
-    def open_vial(self, dur):
+    def open_vial(self, dur=""):
+        # get duration
         duration_open = self.vialDebugWindow.openValve_widget.value()
         param = 'OV'
+
+        # send the thing
         self.sendP(param, duration_open)
+
+        # start timer
+        self.parent.parent.timer_for_openVials.show()
+        self.parent.parent.timer_for_openVials.duration = duration_open
+        self.parent.parent.timer_for_openVials.start_timer()
+        
         
     def toggled_PID(self, checked):
         if checked:
             self.sendP('ON', 0)
-            self.vialDebugWindow.PIDToggle.setText('Turn PID Off')
+            self.vialDebugWindow.PIDToggle.setText('Turn flow control Off')
         else:
             self.sendP('OF', 0)
             self.vialDebugWindow.PIDToggle.setText('Turn PID On')
@@ -309,22 +470,6 @@ class Vial(QObject):
             exec(keyStr + '=slaveVars.get(key)')
     '''
     # CREATE BOXES
-    def createVialSettingsBox(self):
-        self.vialSettingsBox = QGroupBox("vial settings")
-
-        self.recBox = QCheckBox(checkable=True,checked=True)
-        self.sensDictBox = QComboBox()
-        self.sensDictBox.addItems(self.sensDicts)
-        self.sensDictBox.setCurrentText(self.sensDict)
-        self.sensDictBox.setEnabled(False)
-        self.sensDictBtn = QPushButton(text="Edit",checkable=True)
-        
-        layout = QFormLayout()
-        layout.addRow(QLabel(text="Record to file:"),self.recBox)
-        layout.addRow(QLabel("Sensor Calibration Table:"))
-        layout.addRow(self.sensDictBox,self.sensDictBtn)
-        self.vialSettingsBox.setLayout(layout)
-        self.sensDictBtn.clicked.connect(self.clicked_sensDictEdit)
 
     def createRunSettingsBox(self):
         self.runSettingsBox = QGroupBox("run settings")
@@ -390,42 +535,6 @@ class Vial(QObject):
     
     
     # ACCESSED BY EXTERNAL THINGS
-    '''
-    def changeMode(self, newMode):
-        if self.mode == newMode:
-            x=1
-            #self.logger.info('same mode as previous')
-        
-        else:
-            # delete all current widgets            
-            for i in reversed(range(self.mainLayout.count())):
-                item = self.mainLayout.itemAt(i)
-                w = self.mainLayout.itemAt(i).widget()
-                self.mainLayout.removeWidget(w)
-                sip.delete(w)
-
-            self.mode = newMode
-            if self.mode == 'auto':
-                self.createVialSettingsBox()
-                self.createRunSettingsBox()
-                self.createDataReceiveBoxes()
-                self.mainLayout.addWidget(self.vialSettingsBox,0,0)
-                self.mainLayout.addWidget(self.runSettingsBox,1,0)
-                self.mainLayout.addWidget(self.dataReceiveBox,0,1,2,1)
-                
-            if self.mode == 'manual':
-                self.createVialSettingsBox()
-                self.createRunSettingsBox()
-                self.createFlowTuningBox()
-                self.createDebugBox()
-                self.createDataReceiveBoxes()
-
-                self.mainLayout.addWidget(self.vialSettingsBox,0,0)
-                self.mainLayout.addWidget(self.runSettingsBox,1,0)
-                self.mainLayout.addWidget(self.flowTuningBox,0,1)
-                self.mainLayout.addWidget(self.debugBox,1,1)
-                self.mainLayout.addWidget(self.dataReceiveBox,0,2,2,1)
-    '''
     def appendNew(self, value):
         flowValue = value[0:4]
         ctrlValue = value[5:8]
@@ -504,63 +613,6 @@ class OlfactometerConfigWindow(QWidget):
 
 
 
-class openValveTimer(QWidget):
-    
-    def __init__(self, parent):
-        super().__init__()
-        self.parent = parent
-        self.generate_ui()
-        self.hide()
-
-        self.duration = 1
-
-    def generate_ui(self):
-        self.setWindowTitle('open vial timer')
-
-        self.theTimer = QTimer()
-        self.theTimer.timeout.connect(self.show_time)
-        
-        self.timeLabel = QLabel()
-        self.valveTimeLabel = QLabel()
-        self.stopBtn = QPushButton('Close valves early')
-        self.stopBtn.clicked.connect(self.end_early)
-
-        layout = QFormLayout()
-        layout.addRow(QLabel('Current time:'), self.timeLabel)
-        layout.addRow(QLabel('time since valves were opened:'),self.valveTimeLabel)
-        layout.addRow(self.stopBtn)
-        self.setLayout(layout)
-        
-    def show_time(self):
-        curTime = datetime.now()
-        
-        curValveDur = curTime - self.valveOpenTime
-        if curValveDur >= self.valve_open_duration:
-            self.end_timer()
-            
-        curTimeDisplay = curTime.strftime("%H:%M:%S.%f")
-        curTimeDisplay = curTimeDisplay[:-3]
-        self.timeLabel.setText(curTimeDisplay)
-
-        valveDurDisplay = str(curValveDur)
-        self.valveTimeLabel.setText(valveDurDisplay)
-
-    def start_timer(self):
-        self.valveOpenTime = datetime.now()
-        self.valve_open_duration = timedelta(0, self.duration)
-        
-        updateFrequency = 50
-        self.theTimer.start(updateFrequency)
-    
-    def end_early(self):
-        self.theTimer.stop()
-        self.parent.closeVials()
-        self.hide()
-
-    def end_timer(self):
-        self.theTimer.stop()
-        self.parent.timer_finished()
-        self.hide()
 
 
 class worker(QObject):
@@ -730,6 +782,7 @@ class olfactometer(QGroupBox):
         
         if vialProgrammingOn == True:   self.vialProgrammingBox.setEnabled(True)
         if vialProgrammingOn == False:  self.vialProgrammingBox.setEnabled(False)
+        self.calibrationBox.setEnabled(False)
 
     def load_flowCal_files(self):
         self.logger.debug('getting flow sensor calibration files from %s',self.flowCalDir)
@@ -758,6 +811,7 @@ class olfactometer(QGroupBox):
             self.ard2Sccm_dicts[calFileName] = ard2Sccm        
     
     def load_olfaConf_files(self):
+        self.logger.info('load files not fully set up yet')
         # VARIABLES FROM MASTER CONFIG FILE
         self.ardConfig_m = utils.getArduinoConfigFile(self.olfaConfigDir + '/' + arduinoMasterConfigFile)
         self.baudrate = int(self.ardConfig_m.get('baudrate'))   # need to connect
@@ -1162,7 +1216,7 @@ class olfactometer(QGroupBox):
         self.progBar.setValue(0)
 
     def changeSetpoint(self):
-        self.logger.warning('all lines are sent the same int value regardless of calibration table')
+        self.logger.warning('setpoint update: all lines get the same int value regardless of calibration table')
         # get vial string
         self.vialStr = ''
         for s in self.slaves:
@@ -1177,7 +1231,7 @@ class olfactometer(QGroupBox):
         else:
             param = 'Sp'
             value = '500'   # get the value from the spinbox
-            self.logger.warning('set to 500 for now (will fix to get from spinbox later)')
+            self.logger.warning('setting setpoint to 500 for now (will fix to get from spinbox later)')
 
             str_send = param + '_' + value + '_' + self.vialStr
             self.sendThisArray(str_send)
@@ -1195,7 +1249,7 @@ class olfactometer(QGroupBox):
             if len(thisSlaveStr) > 1:
                 self.vialStr = self.vialStr + thisSlaveStr
 
-        if len(self.vialStr) == 0:   self.logger.info('no vials selected')
+        if len(self.vialStr) == 0:   self.logger.info('no vials selected - no command to send')
         else:
             param = 'OV'
             value = '5'        
@@ -1205,7 +1259,6 @@ class olfactometer(QGroupBox):
             self.timer_for_openVials.show()
             self.timer_for_openVials.duration = 5
             self.timer_for_openVials.start_timer()
-            #self.logger.info('started the timer')
 
     def sendThisArray(self, strToSend):
         strToSend = 'S_' + strToSend
@@ -1220,6 +1273,8 @@ class olfactometer(QGroupBox):
         except AttributeError as err:
             self.logger.warning('Serial port not open, cannot send parameter: %s', strToSend)        
     
+
+    # FOR OPENVALVETIMER
     def closeVials(self):
         self.logger.info('valves closed early by user')
         
