@@ -27,6 +27,8 @@ def findLogFolder():
 
     return logFileDirectory
 
+
+# TODO: delete this
 def findOlfaConfigFolder():
     oeg = findOlfEngGroup()
     olfControl_list = glob.glob(oeg + '/**/*OlfactometerControl',recursive=True)
@@ -48,6 +50,7 @@ def createLogger(name):
     else:                   logFileName = 'logfile.txt'
     
     # create logger
+    startDir = os.getcwd()
     os.chdir(today_logDir) # move into directory before creating logger (you can also move just before creating the filehandler, but I'd rather do it here)
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
@@ -75,6 +78,7 @@ def createLogger(name):
         logger.info('~~ Log File for %s ~~', currentDate)
         logger.info('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
+    os.chdir(startDir)
     return logger
 
 def getArduinoConfigFile(fileName):
