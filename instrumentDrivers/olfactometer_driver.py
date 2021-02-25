@@ -127,40 +127,31 @@ class openValveTimer(QWidget):
         self.duration = 1
 
     def generate_ui(self):
-        if self.name:
-            self.setWindowTitle('open vial timer for ' + str(self.name))
-        else:
-            self.setWindowTitle('open vial timer')
-
+        if self.name:   self.setWindowTitle('open vial timer for ' + str(self.name))
+        else:           self.setWindowTitle('open vial timer')
 
         self.theTimer = QTimer()
         self.theTimer.timeout.connect(self.show_time)
         
-        self.timeLabel = QLabel()
+        #self.timeLabel = QLabel()
         self.valveTimeLabel = QLabel()
-        self.stopBtn = QPushButton('Close valve')
-        self.stopBtn.clicked.connect(self.end_early)
+        self.stopBtn = QPushButton(text='Close valve', clicked=self.end_early)
 
         layout = QFormLayout()
         #layout.addRow(QLabel('Current time:'), self.timeLabel)
-        if self.name == '':
-            layout.addRow(QLabel('time since valve open:'),self.valveTimeLabel)
-        else:
-            layout.addRow(QLabel('time since ' + self.name + ' open:'),self.valveTimeLabel)
+        layout.addRow(QLabel('time since valve open:'),self.valveTimeLabel)
         layout.addRow(self.stopBtn)
         self.setLayout(layout)
         
     def show_time(self):
         curTime = datetime.now()
-        
         curValveDur = curTime - self.valveOpenTime
         if curValveDur >= self.valve_open_duration:
             self.end_timer()
-            
-        curTimeDisplay = curTime.strftime("%H:%M:%S.%f")
-        curTimeDisplay = curTimeDisplay[:-3]
-        self.timeLabel.setText(curTimeDisplay)
-
+        
+        #curTimeDisplay = curTime.strftime("%H:%M:%S.%f")
+        #curTimeDisplay = curTimeDisplay[:-3]
+        #self.timeLabel.setText(curTimeDisplay)
         valveDurDisplay = str(curValveDur)
         self.valveTimeLabel.setText(valveDurDisplay)
 
@@ -173,13 +164,13 @@ class openValveTimer(QWidget):
     
     def end_early(self):
         self.theTimer.stop()
-        self.parent.closeVials()
         self.hide()
+        self.parent.closeVials()
 
     def end_timer(self):
         self.theTimer.stop()
-        self.parent.timer_finished()
         self.hide()
+        self.parent.timer_finished()
 
 
 
@@ -420,6 +411,12 @@ class Vial(QObject):
             self.intToSccm_dict = self.parent.parent.ard2Sccm_dicts.get(self.calTable)
             self.sccmToInt_dict = self.parent.parent.sccm2Ard_dicts.get(self.calTable)
             print('Vial ' + self.name  + ' new cal table:  '+ self.calTable)
+
+            # since there are two calTable widgets
+            if self.calTable_widget.currentText() != self.calTable:
+                self.calTable_widget.setCurrentText(self.calTable)
+            if self.vialDebugWindow.calTable_wid.currentText() != self.calTable:
+                self.vialDebugWindow.calTable_wid.setCurrentText(self.calTable)
         
     def update_setpoint(self, sccmVal):
         intVal = utils.convertToInt(sccmVal, self.sccmToInt_dict)
@@ -978,7 +975,6 @@ class olfactometer(QGroupBox):
                 vial_contents[v.vialNum] = dict(calTable=v.calTable,setpoint=v.setpoint,Kp=v.Kp,Ki=v.Ki,Kd=v.Kd)
             self.config_info[s.slaveName] = vial_contents
 
-
     
     
     # UI STUFF
@@ -1003,7 +999,7 @@ class olfactometer(QGroupBox):
     def createSourceFileBox(self):
         self.sourceFileBox = QGroupBox("Source Files")
         
-        self.flowCalLbl = QLabel(text="Flow Sensor Calibration Tables:",toolTip="conversion from int to sccm")
+        self.flowCalLbl = QLabel(text="Flow Calibration Tables:",toolTip="conversion from int to sccm")
         self.flowCalLineEdit = QLineEdit(text=self.flowCalDir)
         self.flowCalEditBtn = QPushButton("Edit",clicked=self.btn_load_flowCal_files)
         self.flowCalEditBtn.setFixedWidth(lineEditWidth)
@@ -1012,11 +1008,9 @@ class olfactometer(QGroupBox):
         row1.addWidget(self.flowCalLineEdit)
         row1.addWidget(self.flowCalEditBtn)
         
-        self.olfaConfLbl = QLabel(text="Olfactometer Config Files:",
-                                    toolTip='# of slaves (& slave names), vials/slave, baudrate (config_master.h)\ndefault setpoint,etc (config_slave.h)')
-        self.olfaConfLineEdit = QLineEdit(text=self.configFileDir,
-                                            toolTip="config_master.h: # of slaves (& slave names), vials/slave, baudrate\nconfig_slave.h: default setpoint")
-        self.olfaConfEditBtn = QPushButton("Edit",clicked=self.btn_load_olfaConfig_file)    # TODO: this is a repeat button
+        self.olfaConfLbl = QLabel(text="Olfactometer Config File:")
+        self.olfaConfLineEdit = QLineEdit(text=self.configFileDir)
+        self.olfaConfEditBtn = QPushButton("Edit",clicked=self.btn_load_olfaConfig_file)
         self.olfaConfEditBtn.setFixedWidth(lineEditWidth)
         row2 = QHBoxLayout()
         row2.addWidget(self.olfaConfLbl)
@@ -1027,17 +1021,14 @@ class olfactometer(QGroupBox):
         #self.manualEditBtn = QPushButton('Edit olfa configuration')
         #self.manualEditBtn.clicked.connect(lambda: self.olfactometer_config_ui.show())
 
-        self.load_olfa_config_Btn = QPushButton('Load different olfa config file')
-        self.load_olfa_config_Btn.clicked.connect(self.btn_load_olfaConfig_file)
-        self.overwrite_olfa_config_Btn = QPushButton('Save olfa config as default')
-        self.overwrite_olfa_config_Btn.clicked.connect(self.btn_overwrite_olfaConfig_file)
-        self.save_olfa_config_Btn = QPushButton('Save olfa config to new file')
+        self.save_olfa_config_Btn = QPushButton('Save olfa config', toolTip='Save current olfa config to new file. Note: Updated setpoints (& K parameters) will only save if they have been sent to the device.')
         self.save_olfa_config_Btn.clicked.connect(self.btn_save_olfaConfig_file)
+        self.overwrite_olfa_config_Btn = QPushButton('Change current olfa config to default', toolTip='Set current olfa config as default to load when program is started')
+        self.overwrite_olfa_config_Btn.clicked.connect(self.btn_overwrite_olfaConfig_file)
         row3 = QHBoxLayout()
-        row3.addWidget(self.load_olfa_config_Btn)
-        row3.addWidget(self.overwrite_olfa_config_Btn)
         row3.addWidget(self.save_olfa_config_Btn)
-
+        row3.addWidget(self.overwrite_olfa_config_Btn)
+        
         layout = QFormLayout()
         layout.addRow(row1)
         layout.addRow(row2)
@@ -1216,7 +1207,7 @@ class olfactometer(QGroupBox):
         self.OVbutton.clicked.connect(self.openVials)
 
         self.setpointBox = QSpinBox(maximum=maxSp,value=defSp)
-        self.spBtn = QPushButton(text='Update Setpoint for Checked Vials',toolTip='Set all checked vials to this setpoint (overrides individual setpoints)')
+        self.spBtn = QPushButton(text='Update Setpoint for Checked Vials', toolTip='Sets all checked vials to this setpoint (overrides individual setpoints) based on individual vial calibration tables.')
         self.spBtn.clicked.connect(self.changeSetpoint)
         
         row1 = QHBoxLayout()
@@ -1368,7 +1359,7 @@ class olfactometer(QGroupBox):
                     intVal = utils.convertToInt(sccmVal, dictToUse)
                     str_send = 'Sp' + '_' + str(intVal) + '_' + v.name
                     self.sendThisArray(str_send)
-        self.logger.warning('check if these strings are sent too quickly')
+        self.logger.warning('need to check if these strings are sent too quickly in a row')
 
     def openVials(self):
         # get vial string
