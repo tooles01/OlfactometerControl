@@ -216,6 +216,9 @@ class Vial(QObject):
     def generate_ui_features(self):
         self.OVcheckbox = QCheckBox(checkable=True, checked=False, toolTip='Apply update to this vial')
 
+        self.viewFlowBtn = QPushButton(text='View Flow', checkable=True, toolTip='read flow values from this vial')
+        #self.viewFlowBtn.clicked.connect()
+
         self.mainBtn = QPushButton(text=self.name, checkable=True, toolTip='Open vial for 5s')
         self.mainBtn.clicked.connect(lambda: self.open_vial(defVl))
 
@@ -431,22 +434,6 @@ class Vial(QObject):
             self.setpoint_widget.setValue(self.setpoint)
     
 
-
-    # USER ACTION    
-    def sendP(self, param, value):
-        # update variable so it saves
-        if param == 'Kp':   self.Kp = value
-        if param == 'Ki':   self.Ki = value
-        if param == 'Kd':   self.Kd = value
-    
-        param = str(param)
-        value = str(value)
-        vialStr = self.name
-
-        strToSend = param + '_' + value + '_' + vialStr
-        self.parent.parent.sendThisArray(strToSend)
-
-        
     def open_vial(self, dur=""):
         # get duration
         duration_open = self.vialDebugWindow.openValve_widget.value()
@@ -459,6 +446,29 @@ class Vial(QObject):
         self.parent.parent.timer_for_openVials.show()
         self.parent.parent.timer_for_openVials.duration = duration_open
         self.parent.parent.timer_for_openVials.start_timer()
+    
+    # USER ACTION    
+    def sendP(self, param, value):
+        # update variable so it saves
+        if param == 'Kp':   self.Kp = value
+        if param == 'Ki':   self.Ki = value
+        if param == 'Kd':   self.Kd = value
+
+        if param[0] == 'K':
+            # slave can receive multiple at a time, but GUI cannot send yet
+            if param[1] == 'p': newP = 'P'
+            if param[1] == 'i': newP = 'I'
+            if param[1] == 'd': newP = 'D'
+            param = 'Kx'
+            value = newP + str(value)
+
+    
+        param = str(param)
+        value = str(value)
+        vialStr = self.name
+
+        strToSend = param + '_' + value + '_' + vialStr
+        self.parent.parent.sendSlaveUpdate(strToSend)
         
 
     # DEBUG FUNCTIONS        
@@ -1335,9 +1345,30 @@ class olfactometer(QGroupBox):
         self.logger.info('Finished program')
         self.progBar.setValue(0)
 
+
+
+    # FOR OPENVALVETIMER
+    def closeVials(self):
+        self.logger.info('valves closed early by user')
+        
+        param = 'CV'
+        value = '0'
+        str_send = param + '_' + value + '_' + self.vialStr
+        self.sendSlaveUpdate(str_send)
+
+        self.timer_finished()
+    
+    def timer_finished(self):
+        self.logger.debug('timer finished')
+        for s in self.slaves:
+            for v in s.vials:
+                if v.mainBtn.isChecked():
+                    v.mainBtn.setChecked(False)
+
+    
+    # SEND UPDATE TO ARDUINO
     def changeSetpoint(self):
-        # TODO: add warning if no vials are checked
-        sccmVal = self.setpointBox.value()
+        sccmVal = self.setpointBox.value()  # TODO: add warning if no vials are checked
         for s in self.slaves:
             for v in s.vials:
                 if v.OVcheckbox.isChecked():
@@ -1347,7 +1378,7 @@ class olfactometer(QGroupBox):
                     dictToUse = v.sccmToInt_dict
                     intVal = utils.convertToInt(sccmVal, dictToUse)
                     str_send = 'Sp' + '_' + str(intVal) + '_' + v.name
-                    self.sendThisArray(str_send)
+                    self.sendSlaveUpdate(str_send)
         self.logger.warning('need to check if these strings are sent too quickly in a row')
 
     def openVials(self):
@@ -1368,13 +1399,13 @@ class olfactometer(QGroupBox):
             param = 'OV'
             value = '5'        
             str_send = param + '_' + value + '_' + self.vialStr
-            self.sendThisArray(str_send)
+            self.sendSlaveUpdate(str_send)
 
             self.timer_for_openVials.show()
             self.timer_for_openVials.duration = 5
             self.timer_for_openVials.start_timer()
 
-    def sendThisArray(self, strToSend):
+    def sendSlaveUpdate(self, strToSend):
         strToSend = 'S_' + strToSend
         bArr_send = strToSend.encode()
         try:
@@ -1389,24 +1420,6 @@ class olfactometer(QGroupBox):
     
 
     
-    # FOR OPENVALVETIMER
-    def closeVials(self):
-        self.logger.info('valves closed early by user')
-        
-        param = 'CV'
-        value = '0'
-        str_send = param + '_' + value + '_' + self.vialStr
-        self.sendThisArray(str_send)
-
-        self.timer_finished()
-    
-    def timer_finished(self):
-        self.logger.debug('timer finished')
-        for s in self.slaves:
-            for v in s.vials:
-                if v.mainBtn.isChecked():
-                    v.mainBtn.setChecked(False)
-
     
     
     # INTERFACE FUNCTIONS
@@ -1522,7 +1535,6 @@ class olfactometer(QGroupBox):
                         for s in self.slaves:
                             for v in s.vials:
                                 if v.name == vialInfo:
-                                    #try:
                                     v.appendNew(dataValue)
 
                                     #for i in range(self.numSlaves):
@@ -1548,9 +1560,6 @@ class olfactometer(QGroupBox):
                                                 self.logger.info('Finished calibration of %s', self.vialToCalibrate)
                                                 meanInt = numpy.mean(self.vialReceiveValues)
                                     '''
-
-                                    #except IndexError as err:
-                                    #    self.logger.error('arduino master config file does not include vial %s', vialInfo)
                 except UnicodeDecodeError as err:
                     self.logger.error('Serial read error: %s\t%s',err,text)
             else:
