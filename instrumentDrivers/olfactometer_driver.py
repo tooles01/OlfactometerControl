@@ -45,8 +45,8 @@ defManualCmd = 'S_OV_5_A123B1C4'
 waitBtSpAndOV = .5
 waitBtSps = 1
 
+### FOR DEBUGGING
 vialProgrammingOn = False
-#vialProgrammingOn = True
 slavesActive = True
 
 
@@ -227,13 +227,10 @@ class Vial(QObject):
         self.vialDebugBtn = QPushButton(text='Debug')
         self.vialDebugBtn.clicked.connect(lambda: self.vialDebugWindow.show())
 
-        #self.vialCalibrateBtn = QPushButton(text='Calibrate', toolTip='Calibrate flow sensor')
-        #self.vialCalibrateBtn.clicked.connect(lambda: self.vialCalibrateWindow.show())
-        
         self.calTable_widget = QComboBox()
         self.calTable_widget.addItems(self.parent.parent.ard2Sccm_dicts)
-        self.calTable_widget.setCurrentText(self.calTable)
         self.calTable_widget.currentIndexChanged.connect(lambda: self.new_calTable(self.calTable_widget.currentText()))
+        self.calTable_widget.setCurrentText(self.calTable)
 
         self.setpoint_widget = QSpinBox(maximum=maxSp,value=self.setpoint)
         self.setpoint_sendBtn = QPushButton(text='Send Sp')
@@ -254,6 +251,7 @@ class Vial(QObject):
         # Flow Calibration Table
         self.vialDebugWindow.calTable_wid = QComboBox(toolTip='Updates immediately')
         self.vialDebugWindow.calTable_wid.addItems(self.parent.parent.ard2Sccm_dicts)
+        self.vialDebugWindow.calTable_wid.setCurrentText(self.calTable) # need to do this before connecting function
         self.vialDebugWindow.calTable_wid.currentIndexChanged.connect(lambda: self.new_calTable(self.vialDebugWindow.calTable_wid.currentText()))
         self.vialDebugWindow.newCalibrationBtn = QPushButton('Calibrate')
         self.vialDebugWindow.newCalibrationBtn.clicked.connect(lambda: self.vialCalibrationWindow.show())
@@ -312,7 +310,6 @@ class Vial(QObject):
         self.manualDebugBox.setLayout(manualDebug_layout)
 
         layout1 = QFormLayout()
-        #layout1.addRow(QLabel('Calibration table:'),self.vialDebugWindow.calTable_wid)
         layout1.addRow(calibration_layout)
         layout1.addRow(setpoint_layout)
         layout1.addRow(openValve_layout)
@@ -339,7 +336,7 @@ class Vial(QObject):
     # VIAL CALIBRATION
     def create_vial_calibration_window(self):
         self.vialCalibrationWindow = QWidget()
-        self.vialCalibrationWindow.setWindowTitle('Calibrate line ' + self.name)
+        self.vialCalibrationWindow.setWindowTitle('Calibrate flow sensor for ' + self.name)
 
         calFile_name = self.name + '_' + currentDate
         self.vialCalibrationWindow.calFile_name_wid = QLineEdit(text=calFile_name)
@@ -404,19 +401,20 @@ class Vial(QObject):
 
 
     # UPDATE PARAMETERS
-    def new_calTable(self, newTable):
+    def new_calTable(self, newCalTable):
         if self.calTable_widget.count() != 0:   # if it's not zero items
-            newCalTable = newTable
-            self.calTable = newCalTable
-            self.intToSccm_dict = self.parent.parent.ard2Sccm_dicts.get(self.calTable)
-            self.sccmToInt_dict = self.parent.parent.sccm2Ard_dicts.get(self.calTable)
-            print('Vial ' + self.name  + ' new cal table:  '+ self.calTable)
+            # if it's different than the last one
+            if newCalTable != self.calTable:
+                self.calTable = newCalTable
+                self.intToSccm_dict = self.parent.parent.ard2Sccm_dicts.get(self.calTable)
+                self.sccmToInt_dict = self.parent.parent.sccm2Ard_dicts.get(self.calTable)
+                print('Vial ' + self.name  + ' new cal table:  '+ self.calTable)
 
-            # since there are two calTable widgets
-            if self.calTable_widget.currentText() != self.calTable:
-                self.calTable_widget.setCurrentText(self.calTable)
-            if self.vialDebugWindow.calTable_wid.currentText() != self.calTable:
-                self.vialDebugWindow.calTable_wid.setCurrentText(self.calTable)
+                # since there are two calTable widgets
+                if self.calTable_widget.currentText() != self.calTable:
+                    self.calTable_widget.setCurrentText(self.calTable)
+                if self.vialDebugWindow.calTable_wid.currentText() != self.calTable:
+                    self.vialDebugWindow.calTable_wid.setCurrentText(self.calTable)
         
     def update_setpoint(self, sccmVal):
         intVal = utils.convertToInt(sccmVal, self.sccmToInt_dict)
@@ -487,6 +485,18 @@ class Vial(QObject):
         else:
             self.sendP('CV', 0)
             self.vialDebugWindow.VlToggle.setText('Open Iso Valve')
+
+
+    # ACCESSED BY EXTERNAL THINGS
+    def appendNew(self, value):
+        flowValue = value[0:4]
+        ctrlValue = value[5:8]
+
+        flowVal = int(flowValue)
+        sccmVal = utils.convertToSCCM(flowVal, self.intToSccm_dict)
+        
+        dataStr = str(flowValue) + '\t' + str(sccmVal) + '\t' + str(ctrlValue)
+        self.dataReceiveBox.append(dataStr)
 
     '''
     def getDefVals(self):
@@ -566,17 +576,7 @@ class Vial(QObject):
         self.flowTuningBox.setLayout(flowTuningBoxLayout)
     '''
     
-    # ACCESSED BY EXTERNAL THINGS
-    def appendNew(self, value):
-        flowValue = value[0:4]
-        ctrlValue = value[5:8]
-
-        flowVal = int(flowValue)
-        sccmVal = utils.convertToSCCM(flowVal, self.intToSccm_dict)
-        
-        dataStr = str(flowValue) + '\t' + str(sccmVal) + '\t' + str(ctrlValue)
-        self.dataReceiveBox.append(dataStr)
-
+    
 
 class Slave(QGroupBox):
 
@@ -587,19 +587,13 @@ class Slave(QGroupBox):
         
         self.vialConfig = self.parent.olfaConfig.get(slaveName)
         
-        '''
-        # but you have to get this from config file instead - not the arduino config
-        for key in keysToGet:
-            keyStr = 'self.' + key
-            exec(keyStr + '=vialConfig.get(key)')
-        '''
         self.layout = QVBoxLayout()
         
         self.vials = []
         for v in self.vialConfig:
             conf = self.vialConfig[v]      #conf = self.vialConfig.get(v)
-            v_vialNum = v
             
+            v_vialNum = v
             v_vial = Vial(self, vialNum=v_vialNum)
             self.vials.append(v_vial)
             
@@ -735,16 +729,15 @@ class olfactometer(QGroupBox):
         if not os.path.exists(self.defConfigDir):
             self.logger.error('cannot find default config files - please move default config folder into %s', self.curDir)
         
-        # Load Default Olfa Config
-        self.configFileDir = self.defConfigDir + '\\' + olfaConfigFile
-        if os.path.exists(self.configFileDir):  self.load_olfaConfig_file()
-        else:   self.logger.warning('%s does not exist in default folder at %s', olfaConfigFile, self.defConfigDir)
         
         # Load Default Flow Calibration
         self.flowCalDir = self.defConfigDir + '\\calibration_tables'
-        if os.path.exists(self.flowCalDir): self.load_flowCal_files();  self.update_slave_flowCal()
-        else:   self.logger.info('Cannot find flow cal tables in default location (%s)', self.flowCalDir)
+        self.load_flowCal_files()
         
+        # Load Default Olfa Config
+        self.configFileDir = self.defConfigDir + '\\' + olfaConfigFile
+        self.load_olfaConfig_file()
+
         # Create UI
         self.generate_ui()
         
@@ -820,23 +813,22 @@ class olfactometer(QGroupBox):
         self.olfaConfLineEdit.setText(self.configFileDir)
     
     def load_olfaConfig_file(self):
+        self.logger.info('loading olfa config file at %s', self.configFileDir)
         try:
             with open(self.configFileDir, 'rt') as u_conf_file:
                 self.olfaConfig = json.load(u_conf_file)
-                self.logger.info('loaded new olfa config file at %s', self.configFileDir)
-                self.create_olfa_slaves()
+                # create slaves
+                self.slaves = []
+                slaveNames = list(self.olfaConfig.keys())
+                for s in slaveNames:
+                    s_slaveName = s
+                    self.logger.debug('Creating slave ' + s_slaveName)
+                    s_slave = Slave(self, s_slaveName)
+                    self.slaves.append(s_slave)
+                
         except IOError as ioe:
             self.logger.info('Could not load olfa config file: %s', ioe)
         
-    def create_olfa_slaves(self):
-        self.slaves = []
-        slaveNames = list(self.olfaConfig.keys())
-        for s in slaveNames:
-            s_slaveName = s
-            self.logger.debug('Creating slave ' + s_slaveName)
-            s_slave = Slave(self, s_slaveName)
-            self.slaves.append(s_slave)
-
     def update_slave_display(self):
         for i in reversed(range(self.allSlaves_layout.count())):
             item = self.allSlaves_layout.itemAt(i)
@@ -864,7 +856,6 @@ class olfactometer(QGroupBox):
         if new_flowDir:
             self.flowCalDir = new_flowDir
             self.load_flowCal_files()
-            #self.update_slave_flowCal()
         else:
             self.logger.info('no directory selected')
 
@@ -879,8 +870,7 @@ class olfactometer(QGroupBox):
             suffix = '.txt'
             calFileNames = os.listdir()
             calFileNames = [fn for fn in calFileNames if fn.endswith(suffix)]   # only txt files # TODO: change to csv
-            if calFileNames == []:
-                self.logger.warning('No files with suffix '' %s '' found in %s', suffix, self.flowCalDir)
+            if calFileNames == []:  self.logger.warning('No files with suffix '' %s '' found in %s', suffix, self.flowCalDir)
             else:
                 new_sccm2Ard_dicts = {}
                 new_ard2Sccm_dicts = {}
@@ -910,15 +900,14 @@ class olfactometer(QGroupBox):
                 if len(new_sccm2Ard_dicts) != 0:
                     self.sccm2Ard_dicts = new_sccm2Ard_dicts
                     self.ard2Sccm_dicts = new_ard2Sccm_dicts
-                else:
-                    self.logger.info('no calibration files found in this directory')
+                else:   self.logger.info('no calibration files found in this directory')
             
             os.chdir(self.curDir)
         
-        else:
-            self.logger.info('Cannot find flow cal directory at %s', self.flowCalDir)
+        else:   self.logger.info('Cannot find flow cal directory at %s', self.flowCalDir)
     
     def update_slave_flowCal(self):
+        self.logger.debug('updating flow cal options for slaves')
         for s in self.slaves:
             for v in s.vials:
                 thisVial_calTable = v.calTable
@@ -1021,7 +1010,7 @@ class olfactometer(QGroupBox):
         #self.manualEditBtn = QPushButton('Edit olfa configuration')
         #self.manualEditBtn.clicked.connect(lambda: self.olfactometer_config_ui.show())
 
-        self.save_olfa_config_Btn = QPushButton('Save olfa config', toolTip='Save current olfa config to new file. Note: Updated setpoints (& K parameters) will only save if they have been sent to the device.')
+        self.save_olfa_config_Btn = QPushButton('Save as new olfa config', toolTip='Save current olfa config to new file. Note: Updated setpoints (& K parameters) will only save if they have been sent to the device.')
         self.save_olfa_config_Btn.clicked.connect(self.btn_save_olfaConfig_file)
         self.overwrite_olfa_config_Btn = QPushButton('Change current olfa config to default', toolTip='Set current olfa config as default to load when program is started')
         self.overwrite_olfa_config_Btn.clicked.connect(self.btn_overwrite_olfaConfig_file)
