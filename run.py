@@ -17,7 +17,6 @@ instTypes = ['olfactometer','flow sensor','NI-DAQ']
 users = ['Shannon','Ophir','Other']
 
 
-
 class channelObj(QObject):
     
     def __init__(self, instrument="", name=""):
@@ -71,7 +70,6 @@ class channelGroupBoxObject(QGroupBox):
             self.instrument_widget = QGroupBox("empty widget for " + self.instrument)
 
 
-
 class mainGUI(QMainWindow):
 
     def __init__(self, channel_objs):
@@ -116,6 +114,7 @@ class mainGUI(QMainWindow):
         #self.olfaSettings_menu.addAction
 
         self.info_menu = self.menu_bar.addMenu('Info')
+        self.resize(self.sizeHint())
         
     
     # TO CREATE THE GUI
@@ -182,14 +181,17 @@ class mainGUI(QMainWindow):
         
         allChannelsWidget = QWidget()
         allChannelsWidget.setLayout(self.channelWidget_layout)
+        allChannelsWidget.resize(allChannelsWidget.sizeHint())
         
         channelScrollArea = QScrollArea()
         channelScrollArea.setWidget(allChannelsWidget)
         channelScrollArea.setWidgetResizable(True)
+        channelScrollArea.resize(channelScrollArea.sizeHint())
 
         channelGroupBox_layout = QVBoxLayout()
         channelGroupBox_layout.addWidget(channelScrollArea)
         self.channelGroupBox.setLayout(channelGroupBox_layout)
+        self.channelGroupBox.resize(self.channelGroupBox.sizeHint())
     
     def createDataFileBox(self):
         self.dataFileBox = QGroupBox("DataFile")
@@ -361,9 +363,25 @@ class mainGUI(QMainWindow):
                         self.dataFileOutputBox.append(display[1:-1])
 
     def load_olfa_config_file(self):
-        self.logger.info('not set up yet')
+        self.logger.info('not set up')
+
+    # OTHER
+    def closeEvent(self, event):
+        result = QMessageBox.question(self,
+            'Confirm exit',
+            'are you sure you want to exit?',
+            QMessageBox.Yes | QMessageBox.No)
+
+        event.ignore()
+
+        if result == QMessageBox.Yes:
+            event.accept()
+
+
+
 
 if __name__ == "__main__":
+    startDir = os.getcwd()
     # Create logger
     mainLogger = utils.createLogger(__name__)
     logFileLoc = mainLogger.handlers[0].baseFilename
@@ -379,7 +397,12 @@ if __name__ == "__main__":
     
     # Open main window
     mainWindow = mainGUI(channelObjs)
+    size = mainWindow.sizeHint()
+    mainWindow.resize(size)
+    mainLogger.info('Done creating interface')
     mainWindow.show()
+
+    # when closed: print setpoints or something
 
     sys.exit(app1.exec_())
     mainLogger.info('~~~~~~~~~~~~~~~done~~~~~~~~~~~~~~')
