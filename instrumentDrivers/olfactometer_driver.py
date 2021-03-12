@@ -10,7 +10,7 @@ import utils
 import sip
 from datetime import datetime, timedelta
 import json
-from pyqtgraph.parametertree import Parameter, ParameterTree
+#from pyqtgraph.parametertree import Parameter, ParameterTree
 
 currentDate = utils.currentDate
 calValue = 100
@@ -179,7 +179,7 @@ class openValveTimer(QWidget):
         self.parent.timer_finished()
 
 
-
+'''
 class OlfactometerConfigWindow(QWidget):
 
     def __init__(self, parent):
@@ -211,7 +211,7 @@ class OlfactometerConfigWindow(QWidget):
         self.setLayout(self.main_layout)
         #self.resize(QtCore.QSize(600, 800))
         #self.update_config_display()
-
+'''
 
 
 class Vial(QObject):
@@ -904,8 +904,6 @@ class olfactometer(QGroupBox):
 
         self.setLayout(self.mainLayout)     
     
-    
-                
 
     # CONFIG FILES / LOADING
     def load_flowCal_files(self):
