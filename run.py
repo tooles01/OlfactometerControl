@@ -418,14 +418,14 @@ if __name__ == "__main__":
     
     # Default Channel objects
     channelObjs = []
-    channelObjs.append(channelObj(name='olfa prototype_test',instrument='olfactometer'))
+    channelObjs.append(channelObj(name='olfa prototype',instrument='olfactometer'))
     #channelObjs.append(channelObj(name='PID reading',instrument='NI-DAQ'))
     
     # Open main window
     mainWindow = mainGUI(channelObjs)
     size = mainWindow.sizeHint()
     mainWindow.resize(size)
-    mainLogger.debug('Done creating interface')
+    #mainLogger.debug('Done creating interface')
     mainWindow.show()
 
     # when closed: print setpoints or something
