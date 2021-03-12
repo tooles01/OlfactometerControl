@@ -10,7 +10,7 @@ import utils
 import sip
 from datetime import datetime, timedelta
 import json
-
+from pyqtgraph.parametertree import Parameter, ParameterTree
 
 currentDate = utils.currentDate
 calValue = 100
@@ -46,8 +46,14 @@ waitBtSpAndOV = .5
 waitBtSps = 1
 
 ### FOR DEBUGGING
-vialProgrammingOn = False
-slavesActive = True
+debugON = False
+
+if debugON == True:
+    vialProgrammingOn = True
+    slavesActive = True
+else:
+    vialProgrammingOn = False
+    slavesActive = False
 
 
 olfaConfigFile = 'configFile.json'
@@ -183,12 +189,28 @@ class OlfactometerConfigWindow(QWidget):
         self.hide()
 
     def generate_ui(self):
-        self.setWindowTitle('Olfactometer Configuration')
-
-        self.apply_button = QPushButton('Apply')
+        self.setWindowTitle('Olfa Configuration')
 
         self.main_layout = QGridLayout()
-        self.main_layout.addWidget(self.apply_button, 2, 0)
+        #self.apply_button = QPushButton('Apply')
+        #self.main_layout.addWidget(self.apply_button, 2, 0)
+        
+        self.olfactometer_conf_tree = ParameterTree(showHeader=True)
+        self.main_layout.addWidget(self.olfactometer_conf_tree, 0, 0, 1, 3)
+
+        self.apply_button = QPushButton('Apply')
+        #self.apply_button.clicked.connect(self.apply_configuration)
+        self.save_button = QPushButton('Save')
+        #self.save_button.clicked.connect(self.save_configuration)
+        self.load_button = QPushButton('Load')
+        #self.load_button.clicked.connect(self.load_configuration)
+        self.main_layout.addWidget(self.apply_button, 1, 0)
+        self.main_layout.addWidget(self.save_button, 1, 1)
+        self.main_layout.addWidget(self.load_button, 1, 2)
+
+        self.setLayout(self.main_layout)
+        #self.resize(QtCore.QSize(600, 800))
+        #self.update_config_display()
 
 
 
@@ -199,25 +221,37 @@ class Vial(QObject):
         self.parent = parent
         self.vialNum = vialNum  # TODO: delete this
 
+        self.name = self.parent.slaveName + str(self.vialNum)
+        
         self.config = self.parent.vialConfig.get(vialNum)
+        self.load_stuff()
+        
+        self.generate_ui_features()
 
+        
+    def load_stuff(self):
+        # load stuff from olfactometer
         self.calTable = self.config['calTable']
+
+        # things that matter to the Arduino
         self.setpoint = self.config['setpoint']
         self.Kp = self.config['Kp']
         self.Ki = self.config['Ki']
         self.Kd = self.config['Kd']
-        
-        self.name = self.parent.slaveName + str(self.vialNum)
+        self.mode = self.config['mode']
+
         self.intToSccm_dict = self.parent.parent.ard2Sccm_dicts.get(self.calTable)
         self.sccmToInt_dict = self.parent.parent.sccm2Ard_dicts.get(self.calTable)
+        
 
-        self.generate_ui_features()
-
+    # UI
     def generate_ui_features(self):
         self.OVcheckbox = QCheckBox(checkable=True, checked=False, toolTip='Apply update to this vial')
 
         self.viewFlowBtn = QPushButton(text='View Flow', checkable=True, toolTip='read flow values from this vial')
-        #self.viewFlowBtn.clicked.connect()
+        if self.mode == 'normal':   self.viewFlowBtn.setChecked(False)
+        if self.mode == 'debug':    self.viewFlowBtn.setChecked(True)
+        self.viewFlowBtn.toggled.connect(self.vial_debug_toggled)
 
         self.mainBtn = QPushButton(text=self.name, checkable=True, toolTip='Open vial for 5s')
         self.mainBtn.clicked.connect(lambda: self.open_vial(defVl))
@@ -240,12 +274,11 @@ class Vial(QObject):
         self.setpoint_sendBtn.clicked.connect(lambda: self.update_setpoint(self.setpoint_widget.value()))
 
         self.program_button = QPushButton(text=self.name, checkable=True)
-        
+
         self.mainBtn.setMaximumWidth(50)
         self.setpoint_widget.setMaximumWidth(80)
         self.setpoint_sendBtn.setMaximumWidth(80)
         self.vialDebugBtn.setMaximumWidth(80)
-
 
     def create_vial_debug_window(self):
         self.vialDebugWindow = QWidget()
@@ -280,10 +313,10 @@ class Vial(QObject):
         openValve_layout.addWidget(QLabel('Duration open (s):'))
         openValve_layout.addWidget(self.vialDebugWindow.openValve_widget)
         openValve_layout.addWidget(self.vialDebugWindow.openValve_sendBtn)
-        
-        self.vialDebugWindow.doneBtn = QPushButton(text='Done', toolTip='Close window')
-        self.vialDebugWindow.doneBtn.clicked.connect(lambda: self.vialDebugWindow.hide())
 
+        self.vialDebugWindow.advancedBtn = QPushButton(text="Enable Advanced Options", checkable=True,
+                toggled=self.toggled_advanced_settings, toolTip="ARE YOU SURE YOU WANT TO DO THIS")
+            
         # Flow control parameters
         self.flowControlBox = QGroupBox('Flow control parameters')
         self.vialDebugWindow.Kp_wid = QLineEdit(text=str(self.Kp))
@@ -306,7 +339,7 @@ class Vial(QObject):
         self.vialDebugWindow.PIDToggle = QPushButton(text="Turn flow control on", checkable=True, toggled=self.toggled_PID)
         self.vialDebugWindow.CtrlToggle = QPushButton(text="Open prop valve", checkable=True, toggled=self.toggled_ctrlOpen)
         self.vialDebugWindow.VlToggle = QPushButton(text="Open Iso Valve", checkable=True, toggled=self.toggled_valveOpen)
-        manualDebug_layout = QHBoxLayout()
+        manualDebug_layout = QVBoxLayout()
         manualDebug_layout.addWidget(self.vialDebugWindow.PIDToggle)
         manualDebug_layout.addWidget(self.vialDebugWindow.CtrlToggle)
         manualDebug_layout.addWidget(self.vialDebugWindow.VlToggle)
@@ -316,6 +349,7 @@ class Vial(QObject):
         layout1.addRow(calibration_layout)
         layout1.addRow(setpoint_layout)
         layout1.addRow(openValve_layout)
+        layout1.addRow(self.vialDebugWindow.advancedBtn)
         layout1.addRow(self.flowControlBox)
         layout1.addRow(self.manualDebugBox)
         
@@ -327,15 +361,42 @@ class Vial(QObject):
         layout2.addWidget(self.dataReceiveLbl)
         layout2.addWidget(self.dataReceiveBox)
 
-        self.vialInfoWindow_layout = QGridLayout()
-        self.vialInfoWindow_layout.addLayout(layout1, 0, 0, 1, 1)
-        self.vialInfoWindow_layout.addLayout(layout2, 0, 1, 1, 1)
-        self.vialInfoWindow_layout.addWidget(self.vialDebugWindow.doneBtn, 1, 0, 1, 2)
+        self.vialInfoWindow_layout = QHBoxLayout()
+        self.vialInfoWindow_layout.addLayout(layout1)
+        self.vialInfoWindow_layout.addLayout(layout2)
         self.vialDebugWindow.setLayout(self.vialInfoWindow_layout)
 
+        self.flowControlBox.setEnabled(False)
+        self.manualDebugBox.setEnabled(False)
+        
         self.vialDebugWindow.hide()
     
-    
+    def vial_debug_toggled(self, checked):
+        # TODO: change the name of this
+        if checked:
+            self.mode = 'debug'
+            self.viewFlowBtn.setText('Stop reading flow values')
+            strToSend = 'MS_debug_' + self.name
+            self.parent.parent.sendParameter(strToSend)
+
+        else:
+            self.mode = 'normal'
+            self.viewFlowBtn.setText('View Flow')
+            strToSend = 'MS_normal_' + self.name
+            self.parent.parent.sendParameter(strToSend)
+
+    def toggled_advanced_settings(self, checked):
+        if checked:
+            self.parent.parent.logger.warning('advanced flow control settings are turned on')
+            self.flowControlBox.setEnabled(True)
+            self.manualDebugBox.setEnabled(True)
+            self.vialDebugWindow.advancedBtn.setText('Disable Advanced Options')
+        else:
+            self.flowControlBox.setEnabled(False)
+            self.manualDebugBox.setEnabled(False)
+            self.vialDebugWindow.advancedBtn.setText('Enable Advanced Options')
+
+
     # VIAL CALIBRATION
     def create_vial_calibration_window(self):
         self.vialCalibrationWindow = QWidget()
@@ -391,17 +452,7 @@ class Vial(QObject):
 
 
     
-    # needs to match olfactometer function for openValveTimer
-    def closeVials(self):
-        param = 'CV'
-        value = '0'
-        self.sendP(param, value)
-        self.timer_finished()
     
-    # needs to match olfactometer function for openValveTimer
-    def timer_finished(self):
-        self.mainBtn.setChecked(False)
-
 
     # UPDATE PARAMETERS
     def new_calTable(self, newCalTable):
@@ -433,7 +484,6 @@ class Vial(QObject):
         if self.setpoint_widget.value() != self.setpoint:
             self.setpoint_widget.setValue(self.setpoint)
     
-
     def open_vial(self, dur=""):
         # get duration
         duration_open = self.vialDebugWindow.openValve_widget.value()
@@ -447,7 +497,8 @@ class Vial(QObject):
         self.parent.parent.timer_for_openVials.duration = duration_open
         self.parent.parent.timer_for_openVials.start_timer()
     
-    # USER ACTION    
+    
+    # USER ACTION
     def sendP(self, param, value):
         # update variable so it saves
         if param == 'Kp':   self.Kp = value
@@ -461,7 +512,6 @@ class Vial(QObject):
             if param[1] == 'd': newP = 'D'
             param = 'Kx'
             value = newP + str(value)
-
     
         param = str(param)
         value = str(value)
@@ -469,16 +519,18 @@ class Vial(QObject):
 
         strToSend = param + '_' + value + '_' + vialStr
         self.parent.parent.sendSlaveUpdate(strToSend)
+
+        # TODO: if there is an error in sending. don't update the variable
         
 
     # DEBUG FUNCTIONS        
     def toggled_PID(self, checked):
         if checked:
             self.sendP('ON', 0)
-            self.vialDebugWindow.PIDToggle.setText('Turn flow control Off')
+            self.vialDebugWindow.PIDToggle.setText('Turn flow control off')
         else:
             self.sendP('OF', 0)
-            self.vialDebugWindow.PIDToggle.setText('Turn PID On')
+            self.vialDebugWindow.PIDToggle.setText('Turn flow control on')
 
     def toggled_ctrlOpen(self, checked):
         if checked:
@@ -495,6 +547,18 @@ class Vial(QObject):
         else:
             self.sendP('CV', 0)
             self.vialDebugWindow.VlToggle.setText('Open Iso Valve')
+
+    
+    # needs to match olfactometer function for openValveTimer
+    def closeVials(self):
+        param = 'CV'
+        value = '0'
+        self.sendP(param, value)
+        self.timer_finished()
+    
+    # needs to match olfactometer function for openValveTimer
+    def timer_finished(self):
+        self.mainBtn.setChecked(False)
 
 
     # ACCESSED BY EXTERNAL THINGS
@@ -601,7 +665,7 @@ class Slave(QGroupBox):
         
         self.vials = []
         for v in self.vialConfig:
-            conf = self.vialConfig[v]      #conf = self.vialConfig.get(v)
+            #conf = self.vialConfig[v]      #conf = self.vialConfig.get(v)
             
             v_vialNum = v
             v_vial = Vial(self, vialNum=v_vialNum)
@@ -610,6 +674,7 @@ class Slave(QGroupBox):
             x = int(v_vialNum)-1
             v_layout = QHBoxLayout()
             v_layout.addWidget(self.vials[x].OVcheckbox)
+            v_layout.addWidget(self.vials[x].viewFlowBtn)
             v_layout.addWidget(self.vials[x].mainBtn)
             v_layout.addWidget(self.vials[x].calTable_widget)
             v_layout.addWidget(self.vials[x].setpoint_widget)
@@ -716,16 +781,14 @@ class olfactometer(QGroupBox):
         
         self.calibrationON = False
 
-        self.curDir = os.getcwd()
+        self.mainDir = os.getcwd()
 
         # NEED TO SET AT BEGINNING
-        self.olfaConfig = []
+        self.olfaConfig = {}
         self.sccm2Ard_dicts = {}
         self.ard2Sccm_dicts = {}
 
-        # TODO: delete these
-        self.baudrate = 9600
-        self.numSlaves = 2
+        self.baudrate = 9600    # TODO: delete these
         self.defTimebt = '100'
         
         # Make Logger
@@ -734,19 +797,14 @@ class olfactometer(QGroupBox):
         self.logger = utils.createLogger(loggerName)
         self.logger.debug('Creating %s', loggerName)
         
-        # Get default files location
-        self.defConfigDir = self.curDir + '\\default config files'
-        if not os.path.exists(self.defConfigDir):
-            self.logger.error('cannot find default config files - please move default config folder into %s', self.curDir)
-        
-        
-        # Load Default Flow Calibration
-        self.flowCalDir = self.defConfigDir + '\\calibration_tables'
-        self.load_flowCal_files()
-        
-        # Load Default Olfa Config
-        self.configFileDir = self.defConfigDir + '\\' + olfaConfigFile
-        self.load_olfaConfig_file()
+
+        # Load config files
+        self.configDir = self.mainDir + '\\config'
+        if not os.path.exists(self.configDir):
+            self.logger.info('config directory does not exist, creating config directory at: %s', self.configDir)
+            os.mkdir(self.configDir)
+        self.load_all_config()
+        self.create_slave_objects()
 
         # Create UI
         self.generate_ui()
@@ -770,8 +828,48 @@ class olfactometer(QGroupBox):
 
     
         self.setTitle(self.className + ': ' + self.name)
-        self.logger.info('done making olfactometer')
+        self.logger.debug('done making olfactometer')
 
+
+    def load_all_config(self):
+        ## Config directory for this instrument (ex: folder called "olfa prototype")
+        self.instConfigDir = self.configDir + '\\' + self.name
+        if not os.path.exists(self.instConfigDir):
+            self.logger.info('creating config directory for instrument %s at: %s', self.name, self.instConfigDir)
+            os.mkdir(self.instConfigDir)
+
+        ## Olfa config file
+        self.olfaConfigDir = self.instConfigDir + '\\olfaConfig.json'
+        if os.path.exists(self.olfaConfigDir):  self.load_olfaConfig()      # TODO: maybe move the "if exist" statement to inside self.load_olfaConfig()
+        else:
+            #self.logger.debug('no olfaConfig.json file at %s', self.olfaConfigDir)
+            self.getDefault_olfaConfig()
+        
+        ## Arduino state file
+        self.arduinoFileDir = self.instConfigDir + '\\arduinoValues.json'
+        if os.path.exists(self.arduinoFileDir): self.load_arduinoState()
+        else:
+            #self.logger.debug('no arduinoValues.json file at: %s', self.arduinoFileDir)
+            self.getDefault_arduinoState()
+            
+        ## Flow Calibration Tables
+        self.flowCalDir = self.configDir + '\\calibration_tables'
+        self.load_flowCal_files()
+
+        #self.create_slave_objects()
+        
+        # Load Default Olfa Config
+        #self.configFileDir = self.configDir + '\\' + olfaConfigFile
+        #self.load_olfaConfig_file()
+
+    def create_slave_objects(self):
+        self.slaves = []
+        slaveNames = list(self.olfaConfig.keys())
+        for s in slaveNames:
+            s_slaveName = s
+            self.logger.debug('Creating slave ' + s_slaveName)
+            s_slave = Slave(self, s_slaveName)
+            self.slaves.append(s_slave)
     
     def generate_ui(self):
         self.createSlaveGroupBox()  # need to make this before vial programming box
@@ -804,77 +902,16 @@ class olfactometer(QGroupBox):
         #self.slaveGroupBox.setMaximumWidth(col3w)
         #self.bottomGroupBox.setMaximumWidth(col3w)
 
-        self.setLayout(self.mainLayout)
-        
-        
+        self.setLayout(self.mainLayout)     
     
-    # CONFIG FILES    
-    def select_olfaConfig_file(self):
-        self.logger.debug('changing olfa config file...')
-        new_olfaConfigDir = QFileDialog.getOpenFileName(self, 'Select olfa config file')    # gives a tuple
-        new_olfaConfigDir = new_olfaConfigDir[0]
-        if new_olfaConfigDir:
-            self.configFileDir = new_olfaConfigDir
-            self.load_olfaConfig_file()
-            self.update_slave_display()
-        else:
-            self.logger.info('no config file selected')
-
-        self.olfaConfLineEdit.setText(self.configFileDir)
     
-    def load_olfaConfig_file(self):
-        self.logger.info('loading olfa config file at %s', self.configFileDir)
-        try:
-            with open(self.configFileDir, 'rt') as u_conf_file:
-                self.olfaConfig = json.load(u_conf_file)
-                # create slaves
-                self.slaves = []
-                slaveNames = list(self.olfaConfig.keys())
-                for s in slaveNames:
-                    s_slaveName = s
-                    self.logger.debug('Creating slave ' + s_slaveName)
-                    s_slave = Slave(self, s_slaveName)
-                    self.slaves.append(s_slave)
                 
-        except IOError as ioe:
-            self.logger.info('Could not load olfa config file: %s', ioe)
-        
-    def update_slave_display(self):
-        for i in reversed(range(self.allSlaves_layout.count())):
-            item = self.allSlaves_layout.itemAt(i)
-            w = self.allSlaves_layout.itemAt(i).widget()
-            self.allSlaves_layout.removeWidget(w)
-            sip.delete(w)
-        
-        for s in self.slaves:
-            self.allSlaves_layout.addWidget(s)
-            if self.connectButton.isChecked() == False: s.setEnabled(False)
 
-        self.logger.debug('finished updating slave display')
-
-    
-    def select_flowCal_dir(self):
-        self.logger.debug('changing flow cal directory...')
-        prev_flowDir = self.flowCalDir
-        prev_flowDir_url = QtCore.QUrl(prev_flowDir)
-        prev_flowDir_url.setScheme("File")
-
-        new_flowDir_url = QFileDialog.getExistingDirectoryUrl(self, 'Select Folder Containing Flow Calibration files', prev_flowDir_url)
-        new_flowDir = new_flowDir_url.toString()
-        new_flowDir = new_flowDir[8:]   # remove scheme
-        
-        if new_flowDir:
-            self.flowCalDir = new_flowDir
-            self.load_flowCal_files()
-        else:
-            self.logger.info('no directory selected')
-
-        self.flowCalLineEdit.setText(self.flowCalDir)
-    
+    # CONFIG FILES / LOADING
     def load_flowCal_files(self):
         if os.path.exists(self.flowCalDir):
-            self.logger.debug('loading flow sensor calibration files from %s', self.flowCalDir)
-            self.curDir = os.getcwd()
+            self.logger.debug('loading flow sensor calibration tables at: %s', self.flowCalDir)
+            self.mainDir = os.getcwd()
             os.chdir(self.flowCalDir)
 
             suffix = '.txt'
@@ -912,9 +949,156 @@ class olfactometer(QGroupBox):
                     self.ard2Sccm_dicts = new_ard2Sccm_dicts
                 else:   self.logger.info('no calibration files found in this directory')
             
-            os.chdir(self.curDir)
+            os.chdir(self.mainDir)
         
-        else:   self.logger.info('Cannot find flow cal directory at %s', self.flowCalDir)
+        else:   self.logger.info('Cannot find flow cal directory at %s', self.flowCalDir)   # TODO this is big issue if none found
+    
+    '''
+    def load_olfaConfig_file(self):
+        self.logger.info('loading olfa config file at %s', self.configFileDir)
+        try:
+            with open(self.configFileDir, 'rt') as u_conf_file:
+                self.olfaConfig = json.load(u_conf_file)
+                # create slaves
+                self.slaves = []
+                slaveNames = list(self.olfaConfig.keys())
+                for s in slaveNames:
+                    s_slaveName = s
+                    self.logger.debug('Creating slave ' + s_slaveName)
+                    s_slave = Slave(self, s_slaveName)
+                    self.slaves.append(s_slave)
+                
+        except IOError as ioe:
+            self.logger.info('Could not load olfa config file: %s', ioe)
+    '''
+    def load_olfaConfig(self):
+        self.logger.info('loading olfaConfig file at: %s', self.olfaConfigDir)
+        try:
+            with open(self.olfaConfigDir, 'rt') as u_conf_file:
+                self.olfaConfig = json.load(u_conf_file)
+                #self.create_slave_objects()
+                '''
+                # create slaves
+                self.slaves = []
+                slaveNames = list(self.olfaConfig.keys())
+                for s in slaveNames:
+                    s_slaveName = s
+                    self.logger.debug('Creating slave ' + s_slaveName)
+                    s_slave = Slave(self, s_slaveName)
+                    self.slaves.append(s_slave)
+                '''
+                
+        except IOError as ioe:
+            self.logger.info('Could not load olfa config file: %s', ioe)
+    
+    def load_arduinoState(self):
+        # TODO
+        self.logger.warning('loading arduinoState file (not set up)')
+        
+    
+    def getDefault_olfaConfig(self):
+        self.logger.debug('getting default olfaConfig')
+        # get values from master and slave config files
+        self.ardConfigDir = self.mainDir + '\\olfactometer'
+
+        if os.path.exists(self.ardConfigDir):    
+            self.logger.info('getting default olfaConfig from arduino config files at %s', self.ardConfigDir)
+            
+            self.ardConfig_m = utils.getArduinoConfigFile(self.ardConfigDir + '\\' + arduinoMasterConfigFile)
+            self.ardConfig_s = utils.getArduinoConfigFile(self.ardConfigDir + '\\' + arduinoSlaveConfigFile)
+
+            # create slaves/vials
+            
+            ## Note: this needs to exactly match the arduino config file
+            self.baudrate = int(self.ardConfig_m['baudrate'])
+            self.numSlaves = int(self.ardConfig_m['numSlaves'])
+            self.slaveNames = self.ardConfig_m.get('slaveNames[numSlaves]')
+            self.vPSlave = self.ardConfig_m.get('vialsPerSlave[numSlaves]')
+            self.defTimebt = self.ardConfig_m.get('timeBetweenRequests')
+
+            self.v_setpoint = self.ardConfig_s['defSp']
+            self.v_Kp = self.ardConfig_s['defKp']
+            self.v_Ki = self.ardConfig_s['defKi']
+            self.v_Kd = self.ardConfig_s['defKd']
+            self.v_setting = self.ardConfig_s['setting']
+
+            # create self.olfaConfig from arduino variables (other option is to create slaves, then generate self.olfaConfig at the end)
+            for i in range(len(self.slaveNames)):
+                vial_contents = {}
+                slaveName = self.slaveNames[i]
+                numVials = self.vPSlave[i]
+                for j in range(int(numVials)):
+                    vialNum = j+1
+                    calTable = defSensorCal
+                    setpoint = self.v_setpoint
+                    Kp = self.v_Kp
+                    Ki = self.v_Ki
+                    Kd = self.v_Kd
+                    setting = self.v_setting
+                    vial_contents[vialNum] = dict(calTable=calTable,
+                                                    setpoint=setpoint, Kp=Kp, Ki=Ki, Kd=Kd,
+                                                    mode=setting)
+                self.olfaConfig[slaveName] = vial_contents
+
+            #for s in self.slaveNames:
+                #vial_contents = {}
+                #for v 
+
+        
+        else:
+            # TODO
+            self.logger.warning('loading default olfaConfig values (not set up yet)')
+            #self.logger.error('cannot get olfaConfig info from arduino config files at %s', self.ardConfigDir)
+        
+    def getDefault_arduinoState(self):
+        # TODO
+        self.logger.warning('getting default arduino state variables (not set up)')
+    
+    
+    def select_olfaConfig_file(self):
+        self.logger.debug('changing olfa config file...')
+        new_olfaConfigDir = QFileDialog.getOpenFileName(self, 'Select olfa config file')    # gives a tuple
+        new_olfaConfigDir = new_olfaConfigDir[0]
+        if new_olfaConfigDir:
+            self.olfaConfigDir = new_olfaConfigDir
+            self.load_olfaConfig()  #self.load_olfaConfig_file()
+            self.update_slave_display()
+        else:
+            self.logger.info('no config file selected')
+
+        self.olfaConfLineEdit.setText(self.olfaConfigDir)
+    
+    def update_slave_display(self):
+        for i in reversed(range(self.allSlaves_layout.count())):
+            item = self.allSlaves_layout.itemAt(i)
+            w = self.allSlaves_layout.itemAt(i).widget()
+            self.allSlaves_layout.removeWidget(w)
+            sip.delete(w)
+        
+        for s in self.slaves:
+            self.allSlaves_layout.addWidget(s)
+            if self.connectButton.isChecked() == False: s.setEnabled(False)
+
+        self.logger.debug('finished updating slave display')
+
+    
+    def select_flowCal_dir(self):
+        self.logger.debug('changing flow cal directory...')
+        prev_flowDir = self.flowCalDir
+        prev_flowDir_url = QtCore.QUrl(prev_flowDir)
+        prev_flowDir_url.setScheme("File")
+
+        new_flowDir_url = QFileDialog.getExistingDirectoryUrl(self, 'Select Folder Containing Flow Calibration files', prev_flowDir_url)
+        new_flowDir = new_flowDir_url.toString()
+        new_flowDir = new_flowDir[8:]   # remove scheme
+        
+        if new_flowDir:
+            self.flowCalDir = new_flowDir
+            self.load_flowCal_files()
+        else:
+            self.logger.info('no directory selected')
+
+        self.flowCalLineEdit.setText(self.flowCalDir)
     
     def update_slave_flowCal(self):
         self.logger.debug('updating flow cal options for slaves')
@@ -929,8 +1113,43 @@ class olfactometer(QGroupBox):
                     #v.new_calTable(v.calTable)
                 else:
                     self.logger.info('setting flow cal table for %s to default', v.name)
-
     
+    
+    
+    def generate_olfaConfig_file(self):
+        self.logger.debug('generating config file (stuff set by the user. ex: cal table, vial contents)')
+        
+        self.config_info = {}
+        for s in self.slaves:
+            vial_contents = {}
+            for v in s.vials:
+                vial_contents[v.vialNum] = dict(calTable=v.calTable,setpoint=v.setpoint,Kp=v.Kp,Ki=v.Ki,Kd=v.Kd,mode=v.mode)
+            self.config_info[s.slaveName] = vial_contents
+
+    def generate_arduinoState_file(self):
+        self.logger.debug('getting arduino state variables (stuff the slaves already have: setpoint, Kp, etc)')
+        
+        self.arduino_info = {}
+        for s in self.slaves:
+            vial_contents = {}
+            for v in s.vials:
+                vial_contents[v.vialNum] = dict(setpoint=v.setpoint,Kp=v.Kp,Ki=v.Ki,Kd=v.Kd,mode=v.mode)
+            self.arduino_info[s.slaveName] = vial_contents
+    
+    
+    def save_arduino_variables(self):
+        self.generate_arduinoState_file()
+        
+        if os.path.exists(self.arduinoFileDir):
+            self.logger.info('deleting arduinoState file: %s', self.arduinoFileDir)
+            os.remove(self.arduinoFileDir)
+        
+        fn = self.arduinoFileDir
+        with open(fn, 'wt') as json_file:
+            self.logger.info('saving arduinoState file: %s', fn)
+            json.dump(self.arduino_info, json_file)
+
+
     
     # BUTTON FUNCTIONS
     def btn_load_flowCal_files(self):
@@ -940,39 +1159,29 @@ class olfactometer(QGroupBox):
         self.select_olfaConfig_file()
     
     def btn_save_olfaConfig_file(self):
-        self.generate_config_file()
+        self.generate_olfaConfig_file()
 
-        self.logger.debug('saving config file')
         fn = QFileDialog.getSaveFileName(self, 'Save File', ".json")
         if fn:
             try:
                 with open(fn[0], 'wt') as json_file:
+                    self.logger.info('saving olfaConfig file: %s', fn)
                     json.dump(self.config_info, json_file)
-                    self.logger.info('saved new config file')
             except IOError as ioe:
                 self.logger.info('Could not save config file: %s', ioe)
 
     def btn_overwrite_olfaConfig_file(self):
-        # delete last config file
-        self.logger.debug('deleting config file at %s', self.configFileDir)
-        os.remove(self.configFileDir)
+        self.generate_olfaConfig_file()
 
-        self.generate_config_file()
-
-        fn = self.configFileDir
-        with open(fn, 'wt') as json_file:
-            json.dump(self.config_info, json_file)
-            self.logger.info('overwrote config file at %s', fn)
-
-    def generate_config_file(self):
-        self.logger.debug('generating config file')
+        if os.path.exists(self.olfaConfigDir):
+            self.logger.info('deleting olfaConfig file: %s', self.olfaConfigDir)
+            os.remove(self.olfaConfigDir)
         
-        self.config_info = {}
-        for s in self.slaves:
-            vial_contents = {}
-            for v in s.vials:
-                vial_contents[v.vialNum] = dict(calTable=v.calTable,setpoint=v.setpoint,Kp=v.Kp,Ki=v.Ki,Kd=v.Kd)
-            self.config_info[s.slaveName] = vial_contents
+        fn = self.olfaConfigDir
+        with open(fn, 'wt') as json_file:
+            self.logger.info('saving olfaConfig file: %s', fn)
+            json.dump(self.config_info, json_file)
+            
 
     
     
@@ -1008,7 +1217,7 @@ class olfactometer(QGroupBox):
         row1.addWidget(self.flowCalEditBtn)
         
         self.olfaConfLbl = QLabel(text="Olfactometer Config File:")
-        self.olfaConfLineEdit = QLineEdit(text=self.configFileDir)
+        self.olfaConfLineEdit = QLineEdit(text=self.olfaConfigDir)
         self.olfaConfEditBtn = QPushButton("Edit",clicked=self.btn_load_olfaConfig_file)
         self.olfaConfEditBtn.setFixedWidth(lineEditWidth)
         row2 = QHBoxLayout()
@@ -1022,7 +1231,7 @@ class olfactometer(QGroupBox):
 
         self.save_olfa_config_Btn = QPushButton('Save as new olfa config', toolTip='Save current olfa config to new file. Note: Updated setpoints (& K parameters) will only save if they have been sent to the device.')
         self.save_olfa_config_Btn.clicked.connect(self.btn_save_olfaConfig_file)
-        self.overwrite_olfa_config_Btn = QPushButton('Change current olfa config to default', toolTip='Set current olfa config as default to load when program is started')
+        self.overwrite_olfa_config_Btn = QPushButton('Set current olfa config as default', toolTip='Current olfa config will automatically load next time program is started')
         self.overwrite_olfa_config_Btn.clicked.connect(self.btn_overwrite_olfaConfig_file)
         row3 = QHBoxLayout()
         row3.addWidget(self.save_olfa_config_Btn)
@@ -1065,17 +1274,17 @@ class olfactometer(QGroupBox):
     def createMasterBox(self):
         self.masterBox = QGroupBox("Master Settings")
 
-        timeBtReqBox = QLineEdit(text=self.defTimebt,returnPressed=lambda:self.sendParameter('M','M','timebt',timeBtReqBox.text()))
-        timeBtButton = QPushButton(text="Update",clicked=lambda: self.sendParameter('M','M','timebt',timeBtReqBox.text()))
+        timeBtReqBox = QLineEdit(text=self.defTimebt,returnPressed=lambda:self.sendParameter('MM_timebt_' + timeBtReqBox.text()))
+        timeBtButton = QPushButton(text="Update",clicked=lambda:self.sendParameter('MM_timebt_' + timeBtReqBox.text()))
         
-        self.manualCmdBox = QLineEdit(text=defManualCmd,returnPressed=self.sendManualParameter)
-        manualCmdBtn = QPushButton(text="Send",clicked=self.sendManualParameter)
+        manualCmdBox = QLineEdit(text=defManualCmd,returnPressed=lambda: self.sendParameter(manualCmdBox.text()))
+        manualCmdBtn = QPushButton(text="Send",clicked=lambda: self.sendParameter(manualCmdBox.text()))
 
         layout = QFormLayout()
         layout.addRow(QLabel(text="Time b/t requests for slave data (ms):"))
         layout.addRow(timeBtReqBox,timeBtButton)
         layout.addRow(QLabel(text="Manually send command:"))
-        layout.addRow(self.manualCmdBox,manualCmdBtn)
+        layout.addRow(manualCmdBox,manualCmdBtn)
         self.masterBox.setLayout(layout)
     
     def createCalibrationBox(self):
@@ -1322,21 +1531,6 @@ class olfactometer(QGroupBox):
             self.logger.info('program stopped early by user')
             self.threadIsFinished()
     
-    def sendThisSetpoint(self, slave:str, vial:int, sccmVal:int):
-        # find dictionary to use
-        for i in range(self.numSlaves):
-            if self.slaves[i].slaveName == slave: s_index = i
-        v_index = vial - 1
-        sensDictName = self.slaves[s_index].vials[v_index].sensDict
-        dictToUse = self.sccm2Ard_dicts.get(sensDictName)
-        
-        # convert to integer and send
-        ardVal = utils.convertToInt(float(sccmVal),dictToUse)
-        self.sendParameter(slave,vial,'Sp',str(ardVal))
-
-    def send_OpenValve(self, slave:str, vial:int, dur:int):
-        self.sendParameter(slave,vial,'OV',str(dur))
-
     def threadIsFinished(self):
         self.obj.threadON = False
         self.thread1.exit()
@@ -1366,7 +1560,29 @@ class olfactometer(QGroupBox):
                     v.mainBtn.setChecked(False)
 
     
-    # SEND UPDATE TO ARDUINO
+    # USER COMMANDS TO ARDUINO
+    def sendThisSetpoint(self, slave:str, vial:int, sccmVal:int):
+        # TODO: change worker so it receives the entire vial object when it starts a program. then it'll already have the dictionary, etc
+        
+        # find dictionary to use
+        for s in self.slaves:
+            if s.slaveName == slave:
+                for v in s.vials:
+                    if v.vialNum == str(vial):
+                        sensDictName = v.calTable
+
+        dictToUse = self.sccm2Ard_dicts.get(sensDictName)
+        
+        # convert to integer and send
+        ardVal = utils.convertToInt(float(sccmVal),dictToUse)
+        
+        strToSend = 'Sp_' + str(ardVal) + '_' + slave + str(vial)
+        self.sendSlaveUpdate(strToSend)
+
+    def send_OpenValve(self, slave:str, vial:int, dur:int):
+        strToSend = 'OV_' + str(dur) + '_' + slave + str(vial)
+        self.sendSlaveUpdate(strToSend)
+
     def changeSetpoint(self):
         sccmVal = self.setpointBox.value()  # TODO: add warning if no vials are checked
         for s in self.slaves:
@@ -1405,8 +1621,13 @@ class olfactometer(QGroupBox):
             self.timer_for_openVials.duration = 5
             self.timer_for_openVials.start_timer()
 
+    
+    # SEND UPDATE TO ARDUINO
     def sendSlaveUpdate(self, strToSend):
         strToSend = 'S_' + strToSend
+        self.sendParameter(strToSend)
+    
+    def sendParameter(self, strToSend):
         bArr_send = strToSend.encode()
         try:
             if self.serial.isOpen():
@@ -1417,10 +1638,41 @@ class olfactometer(QGroupBox):
                 self.logger.warning('Serial port not open, cannot send parameter: %s', strToSend)
         except AttributeError as err:
             self.logger.warning('Serial port not open, cannot send parameter: %s', strToSend)        
-    
 
-    
-    
+    '''
+    def sendParameter(self, slave:str, vial:int, parameter:str, value=""):
+        if parameter[0] == 'K' and parameter != 'Kx':
+            str_param = 'Kx'
+            nextChar = parameter[1].capitalize()
+            valToSend = nextChar + value
+        else:
+            str_param = parameter
+            valToSend = value
+        
+        str_send = slave + str(vial) + '_' + str_param + '_' + valToSend
+        bArr_send = str_send.encode()
+
+        try:
+            if self.serial.isOpen():
+                self.serial.write(bArr_send)
+                self.logger.info("sent to %s: %s", self.port, str_send)
+                self.rawWriteDisplay.append(str_send)
+                for s in self.slaves:
+                    if s.slaveName == slave:
+                        for v in s.vials:
+                            if v.vialNum == vial:
+                                recordThisVial = v.recBox.isChecked()   # if this vial record is on, send to mainGUI
+                                if v.recBox.isChecked():
+                                    instrument = self.name + ' ' + str(slave) + str(vial)
+                                    unit = parameter
+                                    value = value
+                                    self.window().receiveDataFromChannels(instrument,unit,value)
+            else:
+                self.logger.warning('Serial port not open, cannot send parameter: %s', str_send)
+        except AttributeError as err:
+            self.logger.warning('Serial port not open, cannot send parameter: %s', str_send)
+    '''
+
     
     # INTERFACE FUNCTIONS
     def updateLineEditWidth(self):
@@ -1565,53 +1817,6 @@ class olfactometer(QGroupBox):
             else:
                 self.logger.debug('warning - text from Arduino was %s bytes: %s', len(text), text)
     
-    def sendParameter(self, slave:str, vial:int, parameter:str, value=""):
-        if parameter[0] == 'K' and parameter != 'Kx':
-            str_param = 'Kx'
-            nextChar = parameter[1].capitalize()
-            valToSend = nextChar + value
-        else:
-            str_param = parameter
-            valToSend = value
-        
-        str_send = slave + str(vial) + '_' + str_param + '_' + valToSend
-        bArr_send = str_send.encode()
-
-        try:
-            if self.serial.isOpen():
-                self.serial.write(bArr_send)
-                self.logger.info("sent to %s: %s", self.port, str_send)
-                self.rawWriteDisplay.append(str_send)
-                for s in self.slaves:
-                    if s.slaveName == slave:
-                        for v in s.vials:
-                            if v.vialNum == vial:
-                                recordThisVial = v.recBox.isChecked()   # if this vial record is on, send to mainGUI
-                                if v.recBox.isChecked():
-                                    instrument = self.name + ' ' + str(slave) + str(vial)
-                                    unit = parameter
-                                    value = value
-                                    self.window().receiveDataFromChannels(instrument,unit,value)
-            else:
-                self.logger.warning('Serial port not open, cannot send parameter: %s', str_send)
-        except AttributeError as err:
-            self.logger.warning('Serial port not open, cannot send parameter: %s', str_send)
-
-    def sendManualParameter(self):
-        toSend = self.manualCmdBox.text()
-        str_send = toSend
-        bArr_send = str_send.encode()
-
-        try:
-            if self.serial.isOpen():
-                self.serial.write(bArr_send)
-                self.logger.info("sent to %s: %s", self.port, str_send)
-                self.rawWriteDisplay.append(str_send)
-                self.window().receiveDataFromChannels(self.name,'',str_send)
-            else:
-                self.logger.warning('Serial port not open, cannot send parameter: %s', str_send)
-        except AttributeError as err:
-            self.logger.warning('Serial port not open, cannot send parameter: %s', str_send)
     
     def startCalibration(self):
         self.masterBox.setEnabled(False)
