@@ -100,23 +100,40 @@ class mainGUI(QMainWindow):
         self.mainLayout = QHBoxLayout()
         self.mainLayout.addLayout(col1)
         self.mainLayout.addWidget(self.channelGroupBox)
-        self.setWindowTitle('mainGUI')
+        self.setWindowTitle('Olfactometer Prototype & Accessory Control')
 
         self.central_widget = QWidget()
         self.central_widget.setLayout(self.mainLayout)
         self.setCentralWidget(self.central_widget)
 
         # Menu Bar
-        self.menu_bar = self.menuBar()
-        self.olfaSettings_menu = self.menu_bar.addMenu('Olfa Settings')
-        self.olfaSettings_loadConf_action = self.olfaSettings_menu.addAction('Load olfa config file')
-        self.olfaSettings_loadConf_action.triggered.connect(self.load_olfa_config_file)
-        #self.olfaSettings_menu.addAction
-
-        self.info_menu = self.menu_bar.addMenu('Info')
+        self.createMenuBar()
+        
         self.resize(self.sizeHint())
         
     
+    def createMenuBar(self):
+        self.menu_bar = self.menuBar()
+
+        self.olfaSettings_menu = self.menu_bar.addMenu('Olfactometer')
+
+        self.olfaSettings_createNew_action = self.olfaSettings_menu.addAction('Create new/reset olfactometer')
+        self.olfaSettings_createNew_action.triggered.connect(self.create_new_olfactometer)
+
+        self.olfaSettings_loadConf_action = self.olfaSettings_menu.addAction('Load olfa config file')
+        self.olfaSettings_loadConf_action.triggered.connect(self.load_olfa_config_file)
+        #self.olfaSettings_menu.addAction
+        self.info_menu = self.menu_bar.addMenu('Info')
+
+        
+    def create_new_olfactometer(self):
+        # to start, need: name, slaves, vials per slave
+        # maybe do this like the parameter tree thing
+        self.logger.info('do this manually in the config file - i don''t feel like setting it up yet')
+        #new_olfa = olfactometer_driver.OlfactometerConfigWindow(self)
+        #new_olfa.show()
+
+
     # TO CREATE THE GUI
     def createMainSettingsBox(self):
         self.mainSettingsBox = QGroupBox("Main Settings")
@@ -173,7 +190,7 @@ class mainGUI(QMainWindow):
         for i in self.channels:
             c_name = i.name
             c_instrument = i.instrument
-            self.logger.info('>> Creating channel for %s (%s)',c_instrument,c_name)
+            self.logger.debug('>> Creating channel for %s (%s)',c_instrument,c_name)
             channel_groupbox = channelGroupBoxObject(c_name,c_instrument)
             if c_instrument != 'olfactometer':  channel_groupbox.instrument_widget.setMaximumHeight(500)
             self.inst_drivers.append(channel_groupbox)
@@ -365,6 +382,7 @@ class mainGUI(QMainWindow):
     def load_olfa_config_file(self):
         self.logger.info('not set up')
 
+    
     # OTHER
     def closeEvent(self, event):
         result = QMessageBox.question(self,
@@ -375,8 +393,16 @@ class mainGUI(QMainWindow):
         event.ignore()
 
         if result == QMessageBox.Yes:
+            # save current olfa state - based on the last shit you sent to the Arduinos
+            
+            self.inst_drivers[0].instrument_widget.save_arduino_variables()
+            self.inst_drivers[0].instrument_widget.btn_overwrite_olfaConfig_file()
+            
+            # TODO: add popup that shows where it saved it to
+            
+            # THIS ONLY WORKS NOW when you have just the single instrument
+            self.logger.info('~~~~~~~~~~~~~~closing program~~~~~~~~~~~~~~~')
             event.accept()
-
 
 
 
@@ -386,20 +412,20 @@ if __name__ == "__main__":
     mainLogger = utils.createLogger(__name__)
     logFileLoc = mainLogger.handlers[0].baseFilename
     mainLogger.info('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-    mainLogger.info('Logging to %s', logFileLoc)
+    mainLogger.debug('Logging to %s', logFileLoc)
     
     app1 = QApplication(sys.argv)
     
     # Default Channel objects
     channelObjs = []
-    channelObjs.append(channelObj(name='olfa prototype',instrument='olfactometer'))
+    channelObjs.append(channelObj(name='olfa prototype_test',instrument='olfactometer'))
     #channelObjs.append(channelObj(name='PID reading',instrument='NI-DAQ'))
     
     # Open main window
     mainWindow = mainGUI(channelObjs)
     size = mainWindow.sizeHint()
     mainWindow.resize(size)
-    mainLogger.info('Done creating interface')
+    mainLogger.debug('Done creating interface')
     mainWindow.show()
 
     # when closed: print setpoints or something
