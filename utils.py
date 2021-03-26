@@ -6,7 +6,8 @@ from datetime import datetime
 
 currentDate = str(datetime.date(datetime.now()))
 logFileName = 'logFile.txt'
-fileHandlerLogLevel = logging.INFO
+#fileHandlerLogLevel = logging.INFO
+fileHandlerLogLevel = logging.DEBUG
 consoleHandlerLogLevel = logging.DEBUG
 
 
@@ -76,7 +77,6 @@ def createLogger(name):
     anythingInIt = os.stat(logFileName).st_size
     if anythingInIt == 0:   # if logfile is empty
         logger.info('~~ Log File for %s ~~', currentDate)
-        logger.info('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
     os.chdir(startDir)
     return logger
