@@ -6,7 +6,6 @@ from datetime import datetime
 
 currentDate = str(datetime.date(datetime.now()))
 #logFileName = 'logFile.txt'
-#fileHandlerLogLevel = logging.INFO
 fileHandlerLogLevel = logging.DEBUG
 consoleHandlerLogLevel = logging.DEBUG
 
@@ -21,6 +20,17 @@ def findOlfEngGroup():
     
     return oegDirectory
 
+def findTodayDir():
+    oeg = findOlfEngGroup()
+    logfiles_list = glob.glob(oeg + '/**/*logfiles',recursive=True)
+    logFileDirectory = logfiles_list[0]     # assuming there is only 1 logfiles folder there
+
+    # if today folder doesn't exist, make it
+    today_logDir = logFileDirectory + '\\' + currentDate
+    if not os.path.exists(today_logDir): os.mkdir(today_logDir)
+
+    return today_logDir
+
 
 def createLogger(name):
     # find OlfactometerEngineeringGroup directory
@@ -29,7 +39,6 @@ def createLogger(name):
     # find logfiles directory
     logfiles_list = glob.glob(oegDir + '/**/*logfiles',recursive=True)
     logDir = logfiles_list[0]     # assuming there is only 1 logfiles folder there    
-    #logDir = findLogFolder()
     
     # if today folder doesn't exist, make it
     today_logDir = logDir + '\\' + currentDate
@@ -63,10 +72,11 @@ def createLogger(name):
     # first file entry
     anythingInIt = os.stat(logFilePath).st_size
     if anythingInIt == 0:   # if logfile is empty
-        logger.info('~~ Log File for %s ~~', currentDate)
-        logger.info('log file location: %s', logFilePath)
-
+        logger.info('~~ Log File for %s ~~ (%s)', currentDate, logFilePath)
+        
     return logger
+
+
 
 def getArduinoConfigFile(fileName):
     '''
@@ -180,8 +190,6 @@ def getTimeNow():
     timeNow_str = timeNow_f[:-3]                    # type: 'str' (get rid of last 3 ms)
 
     return timeNow_str
-
-
 
 
 
