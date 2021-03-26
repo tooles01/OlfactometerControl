@@ -5,7 +5,7 @@ import os, logging, glob, math
 from datetime import datetime
 
 currentDate = str(datetime.date(datetime.now()))
-logFileName = 'logFile.txt'
+#logFileName = 'logFile.txt'
 #fileHandlerLogLevel = logging.INFO
 fileHandlerLogLevel = logging.DEBUG
 consoleHandlerLogLevel = logging.DEBUG
@@ -21,48 +21,35 @@ def findOlfEngGroup():
     
     return oegDirectory
 
-def findLogFolder():
-    oeg = findOlfEngGroup()
-    logfiles_list = glob.glob(oeg + '/**/*logfiles',recursive=True)
-    logFileDirectory = logfiles_list[0]     # assuming there is only 1 logfiles folder there
-
-    return logFileDirectory
-
-
-# TODO: delete this
-def findOlfaConfigFolder():
-    oeg = findOlfEngGroup()
-    olfControl_list = glob.glob(oeg + '/**/*OlfactometerControl',recursive=True)
-    olfaConfigDirectory = olfControl_list[0]
-    olfactometerFolder = olfaConfigDirectory #+ '\olfactometer'
-
-    return olfactometerFolder
-
 
 def createLogger(name):
-    # if today folder doesn't exist, make it
-    logDir = findLogFolder()
-    today_logDir = logDir + '\\' + currentDate
-    if not os.path.exists(today_logDir):
-        os.mkdir(today_logDir)
-
-    # if it's coming from my computer
-    if 'shann' in logDir:   logFileName = 'logfile_delete.txt'
-    else:                   logFileName = 'logfile.txt'
+    # find OlfactometerEngineeringGroup directory
+    oegDir = findOlfEngGroup()
     
+    # find logfiles directory
+    logfiles_list = glob.glob(oegDir + '/**/*logfiles',recursive=True)
+    logDir = logfiles_list[0]     # assuming there is only 1 logfiles folder there    
+    #logDir = findLogFolder()
+    
+    # if today folder doesn't exist, make it
+    today_logDir = logDir + '\\' + currentDate
+    if not os.path.exists(today_logDir): os.mkdir(today_logDir)
+
     # create logger
-    startDir = os.getcwd()
-    os.chdir(today_logDir) # move into directory before creating logger (you can also move just before creating the filehandler, but I'd rather do it here)
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 
     # formatters
-    #file_formatter = logging.Formatter('%(asctime)s.%(msecs)03d, %(name)-14s :%(levelname)-8s: %(message)s',datefmt='%H:%M:%S')
     file_formatter = logging.Formatter('%(asctime)s.%(msecs)03d : %(name)-14s :%(levelname)-8s: %(message)s',datefmt='%H:%M:%S')
     console_formatter = logging.Formatter('%(name)-14s: %(levelname)-8s: %(message)s')
     
+    # if it's coming from my computer
+    if 'shann' in logDir:   logFileName = 'logfile_delete.txt'
+    else:                   logFileName = 'logfile.txt'
+    
     # File handler
-    file_handler = logging.FileHandler(logFileName,mode='a')
+    logFilePath = today_logDir + '\\' + logFileName
+    file_handler = logging.FileHandler(logFilePath,mode='a')
     file_handler.setLevel(fileHandlerLogLevel)
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
@@ -74,11 +61,11 @@ def createLogger(name):
     logger.addHandler(console_handler)
 
     # first file entry
-    anythingInIt = os.stat(logFileName).st_size
+    anythingInIt = os.stat(logFilePath).st_size
     if anythingInIt == 0:   # if logfile is empty
         logger.info('~~ Log File for %s ~~', currentDate)
+        logger.info('log file location: %s', logFilePath)
 
-    os.chdir(startDir)
     return logger
 
 def getArduinoConfigFile(fileName):
@@ -193,6 +180,28 @@ def getTimeNow():
     timeNow_str = timeNow_f[:-3]                    # type: 'str' (get rid of last 3 ms)
 
     return timeNow_str
+
+
+
+
+
+# TODO: delete this function
+def findLogFolder():
+    oeg = findOlfEngGroup()
+    logfiles_list = glob.glob(oeg + '/**/*logfiles',recursive=True)
+    logFileDirectory = logfiles_list[0]     # assuming there is only 1 logfiles folder there
+
+    return logFileDirectory
+
+
+# TODO: delete this function
+def findOlfaConfigFolder():
+    oeg = findOlfEngGroup()
+    olfControl_list = glob.glob(oeg + '/**/*OlfactometerControl',recursive=True)
+    olfaConfigDirectory = olfControl_list[0]
+    olfactometerFolder = olfaConfigDirectory #+ '\olfactometer'
+
+    return olfactometerFolder
 
 
 
