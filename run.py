@@ -212,7 +212,8 @@ class mainGUI(QMainWindow):
     def createDataFileBox(self):
         self.dataFileBox = QGroupBox("DataFile")
 
-        files = os.listdir()
+        self.datafileDir = utils.findTodayDir()
+        files = os.listdir(self.datafileDir)
         dataFiles = [x for x in files if datafileLbl in x]  # find the files with fileLbl in them
         if not dataFiles:   self.lastFileNum = 0
         else:
@@ -235,16 +236,17 @@ class mainGUI(QMainWindow):
                     fileIdx=fileIdx+1
                 self.lastFileNum = int(lastFilePosNum)
         
-        fileNameLbl = QLabel(text="File Name:")
         defFileName = utils.makeNewFileName(datafileLbl, self.lastFileNum)
         self.enterFileName = QLineEdit(text=defFileName)
-        fileLayout = QHBoxLayout()
-        fileLayout.addWidget(fileNameLbl)
-        fileLayout.addWidget(self.enterFileName)
+        
         self.recordButton = QPushButton(text="Create && Start Recording",checkable=True,clicked=self.clicked_record)
         self.endRecordButton = QPushButton(text="End Recording",clicked=self.clicked_endRecord)
         self.dataFileOutputBox = QTextEdit(readOnly=True)
 
+        fileLayout = QHBoxLayout()
+        fileLayout.addWidget(QLabel(text="File Name:"))
+        fileLayout.addWidget(self.enterFileName)
+        
         layout = QFormLayout()
         layout.addRow(fileLayout)
         layout.addRow(self.recordButton,self.endRecordButton)
@@ -335,12 +337,13 @@ class mainGUI(QMainWindow):
             self.recordButton.setText("Pause Recording")
             self.endRecordButton.setEnabled(True)
             self.enteredFileName = self.enterFileName.text() + dataFileType
-            if not os.path.exists(self.enteredFileName):
-                self.logger.info('Creating new datafile: %s',self.enteredFileName)
+            self.enteredFilePath = self.datafileDir + '\\' + self.enteredFileName
+            if not os.path.exists(self.enteredFilePath):
+                self.logger.info('Creating new datafile: %s (%s)',self.enteredFileName, self.datafileDir)
                 File = self.enteredFileName, ' '
                 Time = "File Created: ", str(currentDate + ' ' + utils.getTimeNow())
                 DataHead = "Time","Instrument","Unit","Value"
-                with open(self.enteredFileName,'a',newline='') as f:
+                with open(self.enteredFilePath,'a',newline='') as f:
                     writer = csv.writer(f,delimiter=delimChar)
                     writer.writerow(File)
                     writer.writerow("")
@@ -348,7 +351,7 @@ class mainGUI(QMainWindow):
                     writer.writerow("")
                     writer.writerow(DataHead)
             else:
-                self.logger.info('Resuming recording to %s', self.enteredFileName)
+                self.logger.info('Resuming recording to %s (%s)', self.enteredFileName, self.datafileDir)
                 
         else:
             self.logger.info('Paused recording to %s',self.enteredFileName)
@@ -400,7 +403,7 @@ class mainGUI(QMainWindow):
             # TODO: add popup that shows where it saved it to
             
             # THIS ONLY WORKS NOW when you have just the single instrument
-            self.logger.info('~~~~~~~~~~~~~~closing program~~~~~~~~~~~~~~~')
+            self.logger.info('~~~~~~closing program~~~~~~~~')
             event.accept()
 
 
