@@ -69,7 +69,6 @@ class channelGroupBoxObject(QGroupBox):
         else:
             self.instrument_widget = QGroupBox("empty widget for " + self.instrument)
 
-
 class mainGUI(QMainWindow):
 
     def __init__(self, channel_objs):
@@ -214,10 +213,10 @@ class mainGUI(QMainWindow):
         self.dataFileBox = QGroupBox("DataFile")
 
         files = os.listdir()
-        dataFiles = [x for x in files if datafileLbl in x]  # files with fileLbl in them
-        if not dataFiles:
-            self.lastFileNum = 0
+        dataFiles = [x for x in files if datafileLbl in x]  # find the files with fileLbl in them
+        if not dataFiles:   self.lastFileNum = 0
         else:
+            # find the number of the last file
             lastFile = dataFiles[len(dataFiles)-1]
             i_fExt = lastFile.rfind('.')
             lastFile = lastFile[:i_fExt]    # remove file extension
@@ -407,19 +406,16 @@ class mainGUI(QMainWindow):
 
 
 if __name__ == "__main__":
-    startDir = os.getcwd()
     # Create logger
     mainLogger = utils.createLogger(__name__)
-    logFileLoc = mainLogger.handlers[0].baseFilename
     mainLogger.info('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-    mainLogger.debug('Logging to %s', logFileLoc)
     
     app1 = QApplication(sys.argv)
     
     # Default Channel objects
     channelObjs = []
     channelObjs.append(channelObj(name='olfa prototype',instrument='olfactometer'))
-    #channelObjs.append(channelObj(name='PID reading',instrument='NI-DAQ'))
+    channelObjs.append(channelObj(name='PID reading',instrument='NI-DAQ'))
     
     # Open main window
     mainWindow = mainGUI(channelObjs)
