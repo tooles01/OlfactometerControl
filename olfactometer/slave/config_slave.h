@@ -1,6 +1,9 @@
 // CONFIG_SLAVE.H
 
-const int timeToWait = 2;		// time to wait before running PID on same line
+const int baudrate = 9600;
+const int numVials = 8;
+
+const int timeToWait = 2;		        // time to wait before running PID on same line
 const int maxValveOpenTime = 5000;	// max time for isolation valve to be open (ms)
 
 float defKp = 0.050;
@@ -8,9 +11,9 @@ float defKi = 0.0001;
 float defKd = 0.000;
 int defSp = 100;
 
-int sensPins[2] = {A0, A1};
-int ctrlPins[2] = {4, 5};
-int valvPins[2] = {22, 23};
+int sensPins[numVials] = {A0, A1, A2, A3, A4, A5, A6, A7};
+int ctrlPins[numVials] = {4, 5, 6, 7, 8, 9, 10, 11};
+int valvPins[numVials] = {22, 23, 24, 25, 26, 27, 28, 29};
 
 typedef struct {
   // pin numbers
@@ -40,4 +43,3 @@ typedef struct {
   unsigned long timeReceived;
   unsigned long timeToClose = 0;
 } vialInfo;
-
