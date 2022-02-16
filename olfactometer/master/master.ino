@@ -12,49 +12,98 @@
 #include "config_master.h"
 
 
+// vialInfo
 typedef struct {
   int vialNum;
   String mode = "debug";  
 } vialInfo;
 
+// slaveInfo
 typedef struct {
-  char slaveName;
+  int slaveActive;
   int slaveAddress;
-  int numVials;
+  char slaveName;
+  int numVials; // delete this
   vialInfo vials[vialsPerSlave];    // set this just for creating all the structs
   
   String mode = "normal"; // get rid of this
   int prevRequestTime;
 } slaveInfo;
 
-slaveInfo arr_slaves[numSlaves];  // array of slaveInfo objects
+slaveInfo arr_slaveInfos[numSlaves];  // array of slaveInfo objects
+
+
+// slave address dictionary
+typedef struct {
+  char slaveName;
+  int address;
+} dictEntry;
+
+dictEntry arr_addresses[numSlaves];
+
 
 void setup() {
-  Wire.begin();
+  
   Serial.begin(baudrate);
   Serial.setTimeout(30);   // max # of ms to wait for serial data in readString
-                           //  -> this is how quickly we can send multiple commands in a row from the python GUI without it blending them all together
-  for (int i=0;i<numSlaves;i++) {
-    // populate with stuff from config file
-    arr_slaves[i].slaveName = slaveNames[i];
-    arr_slaves[i].numVials = vialsPerSlave;//[i];
-    arr_slaves[i].slaveAddress = slaveAddresses[i];
-    //Serial.print("slaveName: ");  Serial.println(slaveNames[i]);
-    //Serial.print("\tnumVials: ");   Serial.println(vialsPerSlave[i]);
+                           // -> this is how quickly we can send multiple commands in a row from python GUI without it combining them all
+  
+  Wire.begin();
+  
+  
+  // SLAVE NAME & ADDRESS DICTIONARY   --> ** move this somewhere else, config or something
+  arr_addresses[0].slaveName = 'A'; arr_addresses[0].address = 3;
+  arr_addresses[1].slaveName = 'B'; arr_addresses[1].address = 4;
+  arr_addresses[2].slaveName = 'C'; arr_addresses[2].address = 1;
+  arr_addresses[3].slaveName = 'D'; arr_addresses[3].address = 2;
+  arr_addresses[4].slaveName = 'E'; arr_addresses[4].address = 0;
+  arr_addresses[5].slaveName = 'F'; arr_addresses[5].address = 5;
 
-    int numVials = vialsPerSlave;//[i];
-    // don't create new array, just modify the one that's there
-    for (int j=0;j<vialsPerSlave;j++) {
-      int vialNum = j+1;
-      arr_slaves[i].vials[j].vialNum=vialNum;
-      if (vialNum > numVials) {
-        arr_slaves[i].vials[j].mode = "null"; // if it is more than the thing has, set mode to null
-      }
-      //Serial.print("\t\tvialNum: ");  Serial.print(arr_slaves[i].vials[j].vialNum);
-      //Serial.print("\tmode: "); Serial.println(arr_slaves[i].vials[j].mode);
-    }
+  
+  // POPULATE SLAVE ARRAY (arr_slaveInfos)
+  for (int i=0;i<numSlaves;i++) {
     
+    arr_slaveInfos[i].numVials = vialsPerSlave; // delete this
+
+    // vial numbers
+    for (int j=0;j<vialsPerSlave;j++) {
+      arr_slaveInfos[i].vials[j].vialNum = j+1;
+    }
+    /*
+    // vial numbers
+    int numVials = vialsPerSlave;
+    for (int j=0;j<vialsPerSlave;j++) {   // don't create new array, just modify the one that's there
+      int vialNum = j+1;
+      arr_slaveInfos[i].vials[j].vialNum = vialNum;
+      if (vialNum > numVials) {
+        arr_slaveInfos[i].vials[j].mode = "null"; // if it is more than the thing has, set mode to null
+      }
+      //Serial.print("\t\tvialNum: ");  Serial.print(arr_slaveInfos[i].vials[j].vialNum);
+      //Serial.print("\tmode: "); Serial.println(arr_slaveInfos[i].vials[j].mode);
+    }
+    */
+
+    // get slave address (request from slave)
+    int address = sayHey(i);
+    arr_slaveInfos[i].slaveAddress = address;
+    
+    // slave active or not; if active: get slave name (from dictionary)
+    char slaveName = '-';
+    if (address != 99) {
+      arr_slaveInfos[i].slaveActive = 1;  // slave is active
+      // get slave name (from dictionary)
+      for (int k=0;k<numSlaves;k++) {
+        if (arr_addresses[k].address = address) {
+          slaveName = arr_addresses[k].slaveName;
+        }
+      }
+    }
+    else {
+      arr_slaveInfos[i].slaveActive = 0;  // slave not active
+    }
+    arr_slaveInfos[i].slaveName = slaveName;
   }
+
 }
 
 void loop() {
@@ -66,11 +115,11 @@ void loop() {
   else {
     for (int x=0;x<numSlaves;x++) {      
       unsigned long currentTime = millis();
-      int prevRequestTime = arr_slaves[x].prevRequestTime;
+      int prevRequestTime = arr_slaveInfos[x].prevRequestTime;
       int timeSinceLast = currentTime-prevRequestTime;
       
       if (timeSinceLast >= timeBetweenRequests) {
-        arr_slaves[x].prevRequestTime = currentTime;
+        arr_slaveInfos[x].prevRequestTime = currentTime;
         requestData(x);
       }
     }
@@ -113,7 +162,7 @@ void parseSerial(String inString) {
 
         // for each slave
         for (int s=0;s<numSlaves;s++) {
-          char slaveName = arr_slaves[s].slaveName;
+          char slaveName = arr_slaveInfos[s].slaveName;
           int s_idx = vialList.indexOf(slaveName);
   
           // if slaveName is in vialList
@@ -125,7 +174,7 @@ void parseSerial(String inString) {
             if (s!=numSlaves-1) {
               int ns_idx;
               for (int ns=s+1;ns<numSlaves;ns++) {
-                char ns_name = arr_slaves[ns].slaveName;
+                char ns_name = arr_slaveInfos[ns].slaveName;
                 ns_idx = thisSlaveVials.indexOf(ns_name);
                 if (ns_idx!=-1) {
                   thisSlaveVials.remove(ns_idx);  // if another slave is present after this one
@@ -142,12 +191,12 @@ void parseSerial(String inString) {
               int thisVialNum_int = thisVialNum-'0';  // convert from char to int
               // match it to the vial in this slave
               for (int p=0;p<vialsPerSlave;p++) {
-                int slave_vialNum = arr_slaves[s].vials[p].vialNum;
-                //Serial.print("\tarr_slaves[");  Serial.print(s);  Serial.print("].vials["); Serial.print(p);  Serial.print("].vialNum = "); Serial.print(slave_vialNum);
+                int slave_vialNum = arr_slaveInfos[s].vials[p].vialNum;
+                //Serial.print("\tarr_slaveInfos[");  Serial.print(s);  Serial.print("].vials["); Serial.print(p);  Serial.print("].vialNum = "); Serial.print(slave_vialNum);
                 // if it matches the slave vial number
                 if (slave_vialNum == thisVialNum_int) { 
-                  arr_slaves[s].vials[p].mode = paramToSend;
-                  Serial.print("\tupdating arr_slaves[");  Serial.print(s);  Serial.print("].vials["); Serial.print(p);  Serial.print("].mode to ");  Serial.println(paramToSend);
+                  arr_slaveInfos[s].vials[p].mode = paramToSend;
+                  Serial.print("\tupdating arr_slaveInfos[");  Serial.print(s);  Serial.print("].vials["); Serial.print(p);  Serial.print("].mode to ");  Serial.println(paramToSend);
                 }
               }
             }
@@ -169,7 +218,7 @@ void parseSerial(String inString) {
     vialList.remove(0,lastUS_idx+1);
     
     for (int s=0;s<numSlaves;s++) {
-      char slaveName = arr_slaves[s].slaveName;
+      char slaveName = arr_slaveInfos[s].slaveName;
       int s_idx = vialList.indexOf(slaveName);
 
       // if slaveName is in vialList
@@ -181,7 +230,7 @@ void parseSerial(String inString) {
         if (s!=numSlaves-1) {
           int ns_idx;
           for (int ns=s+1;ns<numSlaves;ns++) {
-            char ns_name = arr_slaves[ns].slaveName;
+            char ns_name = arr_slaveInfos[ns].slaveName;
             ns_idx = thisSlaveVials.indexOf(ns_name);
             if (ns_idx!=-1) {
               thisSlaveVials.remove(ns_idx);  // if another slave is present after this one
@@ -198,7 +247,7 @@ void parseSerial(String inString) {
         int cArrSize = toSend.length()+1;
         char charArr[cArrSize];
         toSend.toCharArray(charArr,cArrSize);
-        int slaveToSendTo = arr_slaves[s].slaveAddress;
+        int slaveToSendTo = arr_slaveInfos[s].slaveAddress;
 
         Wire.beginTransmission(slaveToSendTo);
         Wire.write(charArr);
@@ -216,8 +265,8 @@ void parseSerial(String inString) {
     char charArr[cArrSize];
     inString.toCharArray(charArr,cArrSize); // convert to char array for sending
     for (int p=0;p<numSlaves;p++) {
-      if (firstChar == arr_slaves[p].slaveName) {
-        slaveToSendTo = arr_slaves[p].slaveAddress;
+      if (firstChar == arr_slaveInfos[p].slaveName) {
+        slaveToSendTo = arr_slaveInfos[p].slaveAddress;
       }
     }
     Wire.beginTransmission(slaveToSendTo);
@@ -228,14 +277,14 @@ void parseSerial(String inString) {
 }
 
 void requestData(int x) {
-  char slaveName = arr_slaves[x].slaveName;
-  int slaveAddress = arr_slaves[x].slaveAddress;
-  int numVials = arr_slaves[x].numVials;
+  char slaveName = arr_slaveInfos[x].slaveName;
+  int slaveAddress = arr_slaveInfos[x].slaveAddress;
+  int numVials = arr_slaveInfos[x].numVials;
   int numBytesToReq = 13;
   
   for (int j=0;j<numVials;j++) {
-    int thisVialNum = arr_slaves[x].vials[j].vialNum;
-    String thisVialMode = arr_slaves[x].vials[j].mode;
+    int thisVialNum = arr_slaveInfos[x].vials[j].vialNum;
+    String thisVialMode = arr_slaveInfos[x].vials[j].mode;
 
     // only request info if the vialmode is set to debug
     if (thisVialMode == "debug") {
@@ -263,4 +312,34 @@ void requestData(int x) {
       Serial.println();
     }
   }
+}
+
+
+
+int sayHey(int addressToCheck) {
+  int recAddr = 0;
+  
+  // tell slave what we're doing
+  Wire.beginTransmission(addressToCheck);
+  Wire.write("hey");
+  Wire.endTransmission();
+  
+  
+  // request address from slave
+  Wire.requestFrom(addressToCheck,2,true);  // *** ADD A TIMEOUT INTO THIS
+  
+  if (Wire.available()) {
+    String receivedStr = "";
+    while (Wire.available()) {
+      char inChar = Wire.read();
+      receivedStr += inChar;
+    }
+    recAddr = receivedStr[0];
+    recAddr = recAddr-'0';    // convert from char to int
+  }
+  else {
+    recAddr = 99; // if nothing is received back from the slave
+  }
+  
+  return recAddr;
 }
