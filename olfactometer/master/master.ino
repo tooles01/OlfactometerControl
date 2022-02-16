@@ -9,11 +9,8 @@
 */
 
 #include <Wire.h>
-#include <C:\Users\shann\Dropbox (NYU Langone Health)\OlfactometerEngineeringGroup (2)\Control\a_software\OlfactometerControl\olfactometer\config_master.h>
-//#include <C:\Users\SB13FLPC016\Dropbox (NYU Langone Health)\RinbergLab\OlfactometerEngineeringGroup\Control\software\OlfactometerControl\olfactometer\config_master.h>
+#include "config_master.h"
 
-
-const int defNumVials = 8;  // can't change the size of an array after it's created. 
 
 typedef struct {
   int vialNum;
@@ -24,7 +21,7 @@ typedef struct {
   char slaveName;
   int slaveAddress;
   int numVials;
-  vialInfo vials[defNumVials];    // set this just for creating all the structs
+  vialInfo vials[vialsPerSlave];    // set this just for creating all the structs
   
   String mode = "normal"; // get rid of this
   int prevRequestTime;
@@ -40,14 +37,14 @@ void setup() {
   for (int i=0;i<numSlaves;i++) {
     // populate with stuff from config file
     arr_slaves[i].slaveName = slaveNames[i];
-    arr_slaves[i].numVials = vialsPerSlave[i];
+    arr_slaves[i].numVials = vialsPerSlave;//[i];
     arr_slaves[i].slaveAddress = slaveAddresses[i];
     //Serial.print("slaveName: ");  Serial.println(slaveNames[i]);
     //Serial.print("\tnumVials: ");   Serial.println(vialsPerSlave[i]);
 
-    int numVials = vialsPerSlave[i];
+    int numVials = vialsPerSlave;//[i];
     // don't create new array, just modify the one that's there
-    for (int j=0;j<defNumVials;j++) {
+    for (int j=0;j<vialsPerSlave;j++) {
       int vialNum = j+1;
       arr_slaves[i].vials[j].vialNum=vialNum;
       if (vialNum > numVials) {
@@ -144,7 +141,7 @@ void parseSerial(String inString) {
               char thisVialNum = thisSlaveVials.charAt(k);
               int thisVialNum_int = thisVialNum-'0';  // convert from char to int
               // match it to the vial in this slave
-              for (int p=0;p<defNumVials;p++) {
+              for (int p=0;p<vialsPerSlave;p++) {
                 int slave_vialNum = arr_slaves[s].vials[p].vialNum;
                 //Serial.print("\tarr_slaves[");  Serial.print(s);  Serial.print("].vials["); Serial.print(p);  Serial.print("].vialNum = "); Serial.print(slave_vialNum);
                 // if it matches the slave vial number
