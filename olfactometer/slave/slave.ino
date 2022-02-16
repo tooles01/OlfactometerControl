@@ -1,5 +1,5 @@
 /*
-  slave_A.ino
+  slave.ino
   
   Version:  0.2.0
   Author:   S.Toole
@@ -12,37 +12,50 @@
 
 #include <Wire.h>
 #include "config_slave.h"
-#include "config_master.h"
-
-const int slaveIndex = 0;
-const int slaveAddress = slaveAddresses[slaveIndex];
-//const int numVials = vialsPerSlave[slaveIndex];
-const int numVials = 8;
 
 volatile vialInfo arr_vials[numVials];
 
+int slaveAddress;
+
+String toSendNext = "";
+int vialToSendNext;
+String paramToSendNext = "";
+
+
 void setup() {
+  
+  Serial.begin(baudrate);
+  
+  // GET SLAVE ADDRESS (from PCB dipswitches)
+  slaveAddress = getSwitchValue();
+  
+  // SET UP I2C COMMUNICATION
   Wire.begin(slaveAddress);
   Wire.onReceive(receiveEvent);
   Wire.onRequest(requestEvent);
-  Serial.begin(baudrate);
-  
+
+  // POPULATE VIAL ARRAY (arr_vials)
   for (int i=0; i<numVials; i++) {
     arr_vials[i].vialNum = i+1;
+    
     arr_vials[i].sensPin = sensPins[i];
     arr_vials[i].ctrlPin = ctrlPins[i];
     arr_vials[i].valvPin = valvPins[i];
+    
     pinMode(arr_vials[i].sensPin, INPUT);
     pinMode(arr_vials[i].ctrlPin, OUTPUT);
     pinMode(arr_vials[i].valvPin, OUTPUT);
-  }
-  
-  for (int i=0; i<numVials; i++) {
+
+    
+    // set prop. valve & isolation valve pins to low
     digitalWrite(arr_vials[i].ctrlPin, LOW);
     digitalWrite(arr_vials[i].valvPin, LOW);
     arr_vials[i].valveState = digitalRead(arr_vials[i].valvPin);
   }
+
+  /*
   Serial.println("\n*****start*****\n");
+  */
 }
 
 void loop() {
@@ -102,15 +115,16 @@ void runPID(int x) {
 }
 
 
-int vialToSendNext;
 
 void receiveEvent() {
+  
+  // READ STRING FROM MASTER
   String receivedStr = "";
   while (Wire.available()) {
     char inChar = Wire.read();
     receivedStr += inChar;
   }
-  
+
   if (receivedStr[0] == 'V') {
     vialToSendNext = receivedStr[1];
     vialToSendNext = vialToSendNext-'0';  // convert to int
@@ -263,4 +277,32 @@ String zeroPadInteger (int value) {
   valString += String(value);
   
   return valString;
+}
+
+
+int getSwitchValue() {
+  int sw2, sw3, sw4;   // doesn't matter if int or byte
+  
+  // intialize switch pins to 5V
+  digitalWrite(dipSwitch2, HIGH);
+  digitalWrite(dipSwitch3, HIGH);
+  digitalWrite(dipSwitch4, HIGH);
+  
+  // read switch values
+  sw2 = digitalRead(dipSwitch2);
+  sw3 = digitalRead(dipSwitch3);
+  sw4 = digitalRead(dipSwitch4);
+  
+  // reverse them (easier for user to set this way)
+  int bit2 = 1, bit3 = 1, bit4 = 1;
+  if (sw2 == HIGH) bit2 = 0;
+  if (sw3 == HIGH) bit3 = 0;
+  if (sw4 == HIGH) bit4 = 0;
+
+  // convert to decimal
+  String binaryStr = String(bit2) + String(bit3) + String(bit4); // convert to binary string
+  long binaryNum = binaryStr.toInt(); // convert to binary number
+  int decimalNum = convertBinaryToDecimal(binaryNum); // convert to decimal number
+
+  return(decimalNum);
 }
