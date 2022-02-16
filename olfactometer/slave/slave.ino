@@ -117,6 +117,7 @@ void runPID(int x) {
 
 
 void receiveEvent() {
+  toSendNext = "";  // later: check that each 'if' updates this, then you won't need to clear
   
   // READ STRING FROM MASTER
   String receivedStr = "";
@@ -125,11 +126,19 @@ void receiveEvent() {
     receivedStr += inChar;
   }
 
-  if (receivedStr[0] == 'V') {
+  // send next: slave address
+  if (receivedStr[0] == 'h') {
+    toSendNext = "address";
+  }
+  
+  // send next: this vial
+  else if (receivedStr[0] == 'V') {
+    toSendNext = "vial";
     vialToSendNext = receivedStr[1];
     vialToSendNext = vialToSendNext-'0';  // convert to int
   }
-  
+
+  // parameter update
   else {
     unsigned long timeReceived = millis();
     String receivedParam = "";
@@ -241,32 +250,54 @@ void receiveEvent() {
 }
 
 void requestEvent() {
-  int i = vialToSendNext - 1;   // index of vial
-  
-  char vialnum[2];
-  itoa(arr_vials[i].vialNum,vialnum,10);
-  Wire.write(vialnum);
-  
-  int valueInt = arr_vials[i].flowVal;
-  String valueStr = zeroPadInteger(valueInt);
-  int valueCArrSize = valueStr.length() + 1;
-  char valueCArr[valueCArrSize];
-  valueStr.toCharArray(valueCArr,valueCArrSize);
-  Wire.write(valueCArr);
 
-  int ctrlInt = arr_vials[i].output;
-  String ctrlStr = zeroPadInteger(ctrlInt);
-  int ctrlCArrSize = ctrlStr.length() + 1;
-  char ctrlCArr[ctrlCArrSize];
-  ctrlStr.toCharArray(ctrlCArr,ctrlCArrSize);
-  Wire.write(ctrlCArr);
+  // SEND SLAVE ADDRESS
+  if (toSendNext == "address") {
+    char addressCArr[2];
+    itoa(slaveAddress,addressCArr,10);
+    Wire.write(addressCArr);    
+  }
   
-  String blankString = "0000";
-  int blankCArrSize = 5;
-  char blankCArr[blankCArrSize];
-  blankString.toCharArray(blankCArr,blankCArrSize);
-  Wire.write(blankCArr);
+  // SEND VIAL CURRENT VALUES
+  else if (toSendNext == "vial") {
+    // send vial number
+    char vialnum[2];
+    int i = vialToSendNext - 1;   // index of vial
+    itoa(arr_vials[i].vialNum,vialnum,10);
+    Wire.write(vialnum);
+  
+    // send flow value (integer)
+    int valueInt = arr_vials[i].flowVal;
+    String valueStr = zeroPadInteger(valueInt);
+    int valueCArrSize = valueStr.length() + 1;
+    char valueCArr[valueCArrSize];
+    valueStr.toCharArray(valueCArr,valueCArrSize);
+    Wire.write(valueCArr);
+  
+    // send prop valve value (integer)
+    int ctrlInt = arr_vials[i].output;
+    String ctrlStr = zeroPadInteger(ctrlInt);
+    int ctrlCArrSize = ctrlStr.length() + 1;
+    char ctrlCArr[ctrlCArrSize];
+    ctrlStr.toCharArray(ctrlCArr,ctrlCArrSize);
+    Wire.write(ctrlCArr);
+  
+    // send placeholder string
+    String blankString = "0000";
+    int blankCArrSize = 5;
+    char blankCArr[blankCArrSize];
+    blankString.toCharArray(blankCArr,blankCArrSize);
+    Wire.write(blankCArr);
+  }
+
+  else {
+    // yikes
+  }
+  
 }
+
+
+
 
 String zeroPadInteger (int value) {
   String valString;
