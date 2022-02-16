@@ -1,5 +1,11 @@
 // CONFIG_SLAVE.H
 
+// dipswitch pins to read slave address from
+#define dipSwitch1  A11
+#define dipSwitch2  A10
+#define dipSwitch3  A9
+#define dipSwitch4  A8
+
 const int baudrate = 9600;
 const int numVials = 8;
 
