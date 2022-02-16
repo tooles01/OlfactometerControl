@@ -281,7 +281,6 @@ String zeroPadInteger (int value) {
 
 
 int getSwitchValue() {
-  int sw2, sw3, sw4;   // doesn't matter if int or byte
   
   // intialize switch pins to 5V
   digitalWrite(dipSwitch2, HIGH);
@@ -289,6 +288,7 @@ int getSwitchValue() {
   digitalWrite(dipSwitch4, HIGH);
   
   // read switch values
+  int sw2, sw3, sw4;              // doesn't matter if int or byte
   sw2 = digitalRead(dipSwitch2);
   sw3 = digitalRead(dipSwitch3);
   sw4 = digitalRead(dipSwitch4);
@@ -298,11 +298,34 @@ int getSwitchValue() {
   if (sw2 == HIGH) bit2 = 0;
   if (sw3 == HIGH) bit3 = 0;
   if (sw4 == HIGH) bit4 = 0;
+  
+  String binaryStr = String(bit2) + String(bit3) + String(bit4);  // convert to string
+  long binaryNum = binaryStr.toInt();                             // convert to int
 
-  // convert to decimal
-  String binaryStr = String(bit2) + String(bit3) + String(bit4); // convert to binary string
-  long binaryNum = binaryStr.toInt(); // convert to binary number
-  int decimalNum = convertBinaryToDecimal(binaryNum); // convert to decimal number
-
+  // convert from binary to decimal
+  int decimalNum = convertBinaryToDecimal(binaryNum);
+  
   return(decimalNum);
+}
+
+long convertBinaryToDecimal (long binary) {
+  /*
+   * Source: https://create.arduino.cc/projecthub/shreyas_arbatti/binary-to-decimal-converter-using-arduino-and-oled-display-3ce3c0?ref=part&ref_id=10308&offset=106
+  */
+  long number = binary;
+  long decimalVal = 0;
+  long baseVal = 1;
+  long tempVal = number;
+  long previousDigit;
+  
+  // Converts Binary to Decimal
+  while (tempVal) {
+    previousDigit = tempVal % 10;
+    tempVal = tempVal / 10;
+    decimalVal += previousDigit * baseVal;
+    baseVal = baseVal * 2;
+  }
+  
+  // Returns the Decimal number
+  return decimalVal;
 }
