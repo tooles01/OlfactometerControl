@@ -51,6 +51,7 @@ void setup() {
                            // -> this is how quickly we can send multiple commands in a row from python GUI without it combining them all
   
   Wire.begin();
+  Wire.setTimeout(250);  // unclear that this works
   
   
   // SLAVE NAME & ADDRESS DICTIONARY   --> ** move this somewhere else, config or something
