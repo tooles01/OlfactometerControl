@@ -212,6 +212,10 @@ void parseSerial(String inString) {
         }
       }
     }
+
+    else {
+      Serial.println("unknown string received");
+    }
     
   }
   
