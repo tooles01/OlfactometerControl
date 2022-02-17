@@ -15,7 +15,7 @@
 // vialInfo
 typedef struct {
   int vialNum;
-  String mode = "debug";  
+  String mode = "debug";
 } vialInfo;
 
 // slaveInfo
@@ -58,7 +58,7 @@ void setup() {
   arr_addresses[3].slaveName = 'D'; arr_addresses[3].address = 2;
   arr_addresses[4].slaveName = 'E'; arr_addresses[4].address = 0;
   arr_addresses[5].slaveName = 'F'; arr_addresses[5].address = 5;
-
+  
   
   // POPULATE SLAVE ARRAY (arr_slaveInfos)
   for (int i=0;i<numSlaves;i++) {
@@ -69,38 +69,25 @@ void setup() {
     for (int j=0;j<vialsPerSlave;j++) {
       arr_slaveInfos[i].vials[j].vialNum = j+1;
     }
-    /*
-    // vial numbers
-    int numVials = vialsPerSlave;
-    for (int j=0;j<vialsPerSlave;j++) {   // don't create new array, just modify the one that's there
-      int vialNum = j+1;
-      arr_slaveInfos[i].vials[j].vialNum = vialNum;
-      if (vialNum > numVials) {
-        arr_slaveInfos[i].vials[j].mode = "null"; // if it is more than the thing has, set mode to null
-      }
-      //Serial.print("\t\tvialNum: ");  Serial.print(arr_slaveInfos[i].vials[j].vialNum);
-      //Serial.print("\tmode: "); Serial.println(arr_slaveInfos[i].vials[j].mode);
-    }
-    */
 
     // get slave address (request from slave)
     int address = sayHey(i);
-    arr_slaveInfos[i].slaveAddress = address;
     
     // slave active or not; if active: get slave name (from dictionary)
     char slaveName = '-';
-    if (address != 99) {
+    if (address == 99) {
+      arr_slaveInfos[i].slaveActive = 0;  // slave not active
+    }
+    else {
       arr_slaveInfos[i].slaveActive = 1;  // slave is active
       // get slave name (from dictionary)
       for (int k=0;k<numSlaves;k++) {
-        if (arr_addresses[k].address = address) {
+        if (arr_addresses[k].address == address) {
           slaveName = arr_addresses[k].slaveName;
         }
       }
     }
-    else {
-      arr_slaveInfos[i].slaveActive = 0;  // slave not active
-    }
+    arr_slaveInfos[i].slaveAddress = address;
     arr_slaveInfos[i].slaveName = slaveName;
   }
 
@@ -279,7 +266,8 @@ void parseSerial(String inString) {
 void requestData(int x) {
   char slaveName = arr_slaveInfos[x].slaveName;
   int slaveAddress = arr_slaveInfos[x].slaveAddress;
-  int numVials = arr_slaveInfos[x].numVials;
+  int numVials = vialsPerSlave;
+  //int numVials = arr_slaveInfos[x].numVials;
   int numBytesToReq = 13;
   
   for (int j=0;j<numVials;j++) {
