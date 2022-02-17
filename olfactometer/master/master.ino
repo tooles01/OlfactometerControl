@@ -11,6 +11,8 @@
 #include <Wire.h>
 #include "config_master.h"
 
+String masterMode = "debug";
+
 
 // vialInfo
 typedef struct {
@@ -101,7 +103,7 @@ void loop() {
   }
   
   else {
-    for (int x=0;x<numSlaves;x++) {      
+    for (int x=0;x<numSlaves;x++) {
       unsigned long currentTime = millis();
       int prevRequestTime = arr_slaveInfos[x].prevRequestTime;
       int timeSinceLast = currentTime-prevRequestTime;
@@ -118,10 +120,10 @@ void loop() {
 
 void parseSerial(String inString) {
   char firstChar = inString[0];
-  
+
+  // something to update within the master
   if (firstChar == 'M') {
     char secChar = inString[1];
-    
     String param = inString;  param.remove(0,3);   // starting at 0, remove first 3 chars
     String value = param;
     
@@ -133,58 +135,75 @@ void parseSerial(String inString) {
     if (secChar == 'M') {
       if (param.indexOf("timebt")>=0) {
         timeBetweenRequests = value.toFloat();
+        if (masterMode == "debug") {
+          Serial.print("updating time between requests to ");
+          Serial.print(timeBetweenRequests);
+          Serial.print(" ms\n");
+        }
       }
     }
     
-    else {
-      if (secChar == 'S') {
-        // parse out parameter
-        String paramToSend = inString;
-        int us_idx = paramToSend.indexOf('_');       paramToSend.remove(0,us_idx+1);
-        int us_Lidx = paramToSend.lastIndexOf('_');  paramToSend.remove(us_Lidx);
+    // update .. ?
+    else if (secChar == 'S') {
+      
+      // parse out parameter
+      String paramToSend = inString;
+      int us_idx = paramToSend.indexOf('_');       paramToSend.remove(0,us_idx+1);
+      int us_Lidx = paramToSend.lastIndexOf('_');  paramToSend.remove(us_Lidx);
 
-        // get list of vials to send this to
-        int lastUS_idx = inString.lastIndexOf('_');
-        String vialList = inString;
-        vialList.remove(0,lastUS_idx+1);
+      // get list of vials to send this to
+      int lastUS_idx = inString.lastIndexOf('_');
+      String vialList = inString;
+      vialList.remove(0,lastUS_idx+1);
 
-        // for each slave
-        for (int s=0;s<numSlaves;s++) {
-          char slaveName = arr_slaveInfos[s].slaveName;
-          int s_idx = vialList.indexOf(slaveName);
-  
-          // if slaveName is in vialList
-          if (s_idx!=-1) {
-            
-            // get vial numbers
-            String thisSlaveVials = vialList;
-            // if it's not the last slave
-            if (s!=numSlaves-1) {
-              int ns_idx;
-              for (int ns=s+1;ns<numSlaves;ns++) {
-                char ns_name = arr_slaveInfos[ns].slaveName;
-                ns_idx = thisSlaveVials.indexOf(ns_name);
-                if (ns_idx!=-1) {
-                  thisSlaveVials.remove(ns_idx);  // if another slave is present after this one
-                  break;
-                }
+      // for each slave
+      for (int s=0;s<numSlaves;s++) {
+        char slaveName = arr_slaveInfos[s].slaveName;
+        int s_idx = vialList.indexOf(slaveName);
+        
+        // if slaveName is in vialList
+        if (s_idx!=-1) {
+          // get vial numbers
+          String thisSlaveVials = vialList;
+          
+          // if it's not the last slave
+          if (s!=numSlaves-1) {
+            // for each slave that exists after this one: remove data
+            int ns_idx;
+            for (int ns=s+1;ns<numSlaves;ns++) {
+              char ns_name = arr_slaveInfos[ns].slaveName;
+              ns_idx = thisSlaveVials.indexOf(ns_name);
+              if (ns_idx!=-1) {
+                thisSlaveVials.remove(ns_idx);  // if another slave is present after this one
+                break;
               }
             }
-            thisSlaveVials.remove(0,s_idx+1); // start at 0, remove everything before/including this slaveName
+          }
+          // get the vial numbers for just this slave
+          thisSlaveVials.remove(0,s_idx+1); // start at 0, remove everything before/including this slaveName
+          
+          // for each vial in this slave's list:
+          int strLen = thisSlaveVials.length();
+          for (int k=0;k<strLen;k++) {  // bug: sometimes iterates an extra time (newline char). prob not super time consuming.
             
-            // for each vial in list:
-            int strLen = thisSlaveVials.length();
-            for (int k=0;k<strLen;k++) {  // bug: sometimes iterates an extra time (newline char). prob not super time consuming.
-              char thisVialNum = thisSlaveVials.charAt(k);
-              int thisVialNum_int = thisVialNum-'0';  // convert from char to int
-              // match it to the vial in this slave
-              for (int p=0;p<vialsPerSlave;p++) {
-                int slave_vialNum = arr_slaveInfos[s].vials[p].vialNum;
-                //Serial.print("\tarr_slaveInfos[");  Serial.print(s);  Serial.print("].vials["); Serial.print(p);  Serial.print("].vialNum = "); Serial.print(slave_vialNum);
-                // if it matches the slave vial number
-                if (slave_vialNum == thisVialNum_int) { 
-                  arr_slaveInfos[s].vials[p].mode = paramToSend;
-                  Serial.print("\tupdating arr_slaveInfos[");  Serial.print(s);  Serial.print("].vials["); Serial.print(p);  Serial.print("].mode to ");  Serial.println(paramToSend);
+            // get vial number
+            char thisVialNum = thisSlaveVials.charAt(k);
+            int thisVialNum_int = thisVialNum-'0';  // convert from char to int
+            
+            // match it to the vial in this slave
+            for (int p=0;p<vialsPerSlave;p++) { // edit: this may be excessive
+              int slave_vialNum = arr_slaveInfos[s].vials[p].vialNum;
+              
+              // if it matches the slave vial number: update this vial's mode
+              if (slave_vialNum == thisVialNum_int) {
+                arr_slaveInfos[s].vials[p].mode = paramToSend;
+                if (masterMode == "debug") {
+                  Serial.print("\tupdating arr_slaveInfos[");
+                  Serial.print(s);
+                  Serial.print("].vials[");
+                  Serial.print(p);
+                  Serial.print("].mode to ");
+                  Serial.println(paramToSend);
                 }
               }
             }
@@ -192,10 +211,12 @@ void parseSerial(String inString) {
         }
       }
     }
+    
   }
   
   // parameter slave needs to update within itself
   else if (firstChar == 'S') {
+    
     // parse out parameter
     String paramToSend = inString;
     int us_idx = paramToSend.indexOf('_');       paramToSend.remove(0,us_idx+1);
@@ -204,7 +225,8 @@ void parseSerial(String inString) {
     int lastUS_idx = inString.lastIndexOf('_');
     String vialList = inString;
     vialList.remove(0,lastUS_idx+1);
-    
+
+    // send to slaves in list
     for (int s=0;s<numSlaves;s++) {
       char slaveName = arr_slaveInfos[s].slaveName;
       int s_idx = vialList.indexOf(slaveName);
@@ -222,13 +244,38 @@ void parseSerial(String inString) {
             ns_idx = thisSlaveVials.indexOf(ns_name);
             if (ns_idx!=-1) {
               thisSlaveVials.remove(ns_idx);  // if another slave is present after this one
+              /*
+              if (masterMode == "debug") {
+                Serial.print("thisSlaveVials = ");
+                Serial.print(thisSlaveVials);
+                Serial.println();
+              }
+              */
               break;
             }
           }
         }
         
         thisSlaveVials.remove(0,s_idx+1); // start at 0, remove everything before/including this slaveName
-
+        /*
+        if (masterMode == "debug") {
+          Serial.print("thisSlaveVials = ");
+          Serial.print(thisSlaveVials);
+          Serial.println();
+        }  
+        */
+        /*
+        Serial.print("slave: "); Serial.print(arr_slaveInfos[s].slaveName);
+        Serial.print("\tvials: "); Serial.print(thisSlaveVials);
+        Serial.print("\tlength of vial string: ");  Serial.print(thisSlaveVials.length());
+        Serial.println();
+        for (int v=0;v<=thisSlaveVials.length();v++) {
+          Serial.print("thisSlaveVials[");  Serial.print(v);  Serial.print("]:");
+          char toPrint = thisSlaveVials[v];
+          Serial.println(toPrint);
+        }
+        */
+        
         // send message to slave
         String toSend = paramToSend + thisSlaveVials;
         
@@ -236,12 +283,17 @@ void parseSerial(String inString) {
         char charArr[cArrSize];
         toSend.toCharArray(charArr,cArrSize);
         int slaveToSendTo = arr_slaveInfos[s].slaveAddress;
-
+        
+        Serial.print("sending: ");
+        Serial.print(charArr);
+        Serial.print("\tto slave at address ");
+        Serial.println(slaveToSendTo);
+        
         Wire.beginTransmission(slaveToSendTo);
         Wire.write(charArr);
         Wire.endTransmission();
       }
-    
+      
     }
   }
   
@@ -264,6 +316,7 @@ void parseSerial(String inString) {
   }
 }
 
+
 void requestData(int x) {
   char slaveName = arr_slaveInfos[x].slaveName;
   int slaveAddress = arr_slaveInfos[x].slaveAddress;
@@ -281,24 +334,49 @@ void requestData(int x) {
       int numChars = strSend.length() + 1;
       char strSend_[numChars];
       strSend.toCharArray(strSend_,numChars);
+      if (masterMode == "debug") {
+        Serial.print("\nsent:\t\t");
+        Serial.print(strSend);
+        Serial.print("\t\tto address ");
+        Serial.print(slaveAddress);
+        Serial.print(" (slave ");
+        Serial.print(arr_slaveInfos[x].slaveName);
+        Serial.print(")");
+        Serial.println();
+      }
       
       Wire.beginTransmission(slaveAddress);
       Wire.write(strSend_);
       Wire.endTransmission();
       
       Wire.requestFrom(slaveAddress,numBytesToReq,true);
-      Serial.print(slaveName);
-      /*
-      switch (slaveName) {
-        case 'A': Serial.print("A");  break;
-        case 'B': Serial.print("B");  break;
+      
+      if (masterMode == "debug") {
+        Serial.print("received:\t");
       }
-      */
+      else {
+        Serial.print(slaveName);
+      }
+            
       for (int a=0;a<numBytesToReq;a++) {
         char fromSlave = Wire.read();
         Serial.print(fromSlave);
       }
       Serial.println();
+      
+      /*
+      if (masterMode == "debug") {
+        Serial.print("string '");
+        Serial.print(whatDoWeGet);
+        Serial.print("' (length: ");
+        Serial.print(whatDoWeGet.length());
+        Serial.print(" chars, size: ");
+        Serial.print(sizeof(whatDoWeGet));
+        Serial.print(" bytes)");
+        Serial.println();
+        Serial.println("end of transmission from slave");
+      }
+      */
     }
   }
 }
