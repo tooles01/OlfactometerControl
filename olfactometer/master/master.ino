@@ -91,6 +91,7 @@ void setup() {
     arr_slaveInfos[i].slaveName = slaveName;
   }
 
+  printSlaveInfo();
 }
 
 void loop() {
@@ -330,4 +331,19 @@ int sayHey(int addressToCheck) {
   }
   
   return recAddr;
+}
+
+
+
+
+void printSlaveInfo() {
+  // print list of slaves n shit for funsies
+  Serial.println("~~~~~~~~~~~~~~~~~~");
+  for (int i=0; i<numSlaves;i++) {
+    Serial.print(arr_slaveInfos[i].slaveName);
+    Serial.print("\tslaveAddress: "); Serial.print(arr_slaveInfos[i].slaveAddress);
+    //Serial.print("\tslaveActive: ");  Serial.print(arr_slaveInfos[i].slaveActive);
+    Serial.println();
+  }
+  Serial.println();
 }
