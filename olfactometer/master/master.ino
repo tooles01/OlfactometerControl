@@ -25,7 +25,6 @@ typedef struct {
   int slaveActive;
   int slaveAddress;
   char slaveName;
-  int numVials; // delete this
   vialInfo vials[vialsPerSlave];    // set this just for creating all the structs
   
   String mode = "normal"; // get rid of this
@@ -66,8 +65,6 @@ void setup() {
   // POPULATE SLAVE ARRAY (arr_slaveInfos)
   for (int i=0;i<numSlaves;i++) {
     
-    arr_slaveInfos[i].numVials = vialsPerSlave; // delete this
-
     // vial numbers
     for (int j=0;j<vialsPerSlave;j++) {
       arr_slaveInfos[i].vials[j].vialNum = j+1;
@@ -325,11 +322,9 @@ void parseSerial(String inString) {
 void requestData(int x) {
   char slaveName = arr_slaveInfos[x].slaveName;
   int slaveAddress = arr_slaveInfos[x].slaveAddress;
-  int numVials = vialsPerSlave;
-  //int numVials = arr_slaveInfos[x].numVials;
   int numBytesToReq = 13;
   
-  for (int j=0;j<numVials;j++) {
+  for (int j=0;j<vialsPerSlave;j++) {
     int thisVialNum = arr_slaveInfos[x].vials[j].vialNum;
     String thisVialMode = arr_slaveInfos[x].vials[j].mode;
 
