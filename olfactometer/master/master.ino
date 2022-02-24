@@ -90,7 +90,7 @@ void setup() {
     arr_slaveInfos[i].slaveAddress = address;
     arr_slaveInfos[i].slaveName = slaveName;
   }
-
+  
   printSlaveInfo();
 }
 
@@ -102,14 +102,16 @@ void loop() {
   
   else {
     for (int x=0;x<numSlaves;x++) {
-      unsigned long currentTime = millis();
-      int prevRequestTime = arr_slaveInfos[x].prevRequestTime;
-      int timeSinceLast = currentTime-prevRequestTime;
-      
-      if (timeSinceLast >= timeBetweenRequests) {
-        arr_slaveInfos[x].prevRequestTime = currentTime;
-        requestData(x);
-      }
+      // if slave is active
+      if (arr_slaveInfos[x].slaveActive == 1) {
+        unsigned long currentTime = millis();
+        int prevRequestTime = arr_slaveInfos[x].prevRequestTime;
+        int timeSinceLast = currentTime-prevRequestTime;
+        
+        if (timeSinceLast >= timeBetweenRequests) {
+          arr_slaveInfos[x].prevRequestTime = currentTime;
+          requestData(x);
+        }
     }
   }
   
@@ -118,7 +120,7 @@ void loop() {
 
 void parseSerial(String inString) {
   char firstChar = inString[0];
-
+  
   // something to update within the master
   if (firstChar == 'M') {
     char secChar = inString[1];
@@ -209,11 +211,10 @@ void parseSerial(String inString) {
         }
       }
     }
-
+    
     else {
       Serial.println("unknown string received");
     }
-    
   }
   
   // parameter slave needs to update within itself
@@ -391,7 +392,6 @@ int sayHey(int addressToCheck) {
   Wire.write("hey");
   Wire.endTransmission();
   
-  
   // request address from slave
   Wire.requestFrom(addressToCheck,2,true);  // *** ADD A TIMEOUT INTO THIS
   
@@ -410,8 +410,6 @@ int sayHey(int addressToCheck) {
   
   return recAddr;
 }
-
-
 
 
 void printSlaveInfo() {
