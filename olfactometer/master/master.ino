@@ -11,7 +11,8 @@
 #include <Wire.h>
 #include "config_master.h"
 
-String masterMode = "debug";
+//String masterMode = "debug";
+String masterMode = "";
 
 
 // vialInfo
@@ -99,7 +100,58 @@ void loop() {
     String inString = Serial.readString();
     parseSerial(inString);
   }
+
+
   
+  else {
+    for (int x=0;x<numSlaves;x++) {
+      
+      // if slave is active
+      if (arr_slaveInfos[x].slaveActive == 1) {
+        unsigned long currentTime = millis();
+        int prevRequestTime = arr_slaveInfos[x].prevRequestTime;
+        int timeSinceLast = currentTime-prevRequestTime;
+        
+        if (timeSinceLast >= timeBetweenRequests) {
+          arr_slaveInfos[x].prevRequestTime = currentTime;
+          
+          char slaveName = arr_slaveInfos[x].slaveName;
+          int slaveAddress = arr_slaveInfos[x].slaveAddress;
+          
+          for (int j=0;j<vialsPerSlave;j++) {
+            int thisVialNum = arr_slaveInfos[x].vials[j].vialNum;
+            String thisVialMode = arr_slaveInfos[x].vials[j].mode;
+            // only request info if the vialmode is set to debug
+            if (thisVialMode == "debug") {
+              requestVialData(slaveAddress,thisVialNum);
+              
+
+
+              // don't know if this will work, but try reading it with a while loop (like slave does)
+              String receivedStr = "";
+              while (Wire.available()) {
+                char inChar = Wire.read();
+                receivedStr += inChar;
+              }
+              
+              if (masterMode == "debug") {
+                Serial.print("received:\t");
+              }
+              else {
+                Serial.print(slaveName);
+              }
+              Serial.print(receivedStr);
+              Serial.println();
+            }
+          }
+          
+        }
+      }
+    }
+  }
+  
+  // this works
+  /*
   else {
     for (int x=0;x<numSlaves;x++) {
       // if slave is active
@@ -115,6 +167,7 @@ void loop() {
       }
     }
   }
+  */
   
 }
 
@@ -320,6 +373,29 @@ void parseSerial(String inString) {
   }
 }
 
+void requestVialData(int slave_address, int vial_number) {
+  int numBytesToReq = 13;
+  
+  String strSend = "V" + String(vial_number);
+  int numChars = strSend.length() + 1;
+  char strSend_[numChars];
+  strSend.toCharArray(strSend_,numChars);
+  
+  if (masterMode == "debug") {
+    Serial.print("\nsent:\t\t");
+    Serial.print(strSend);
+    Serial.print("\t\tto address ");
+    Serial.print(slave_address);
+    Serial.println();
+  }
+
+  Wire.beginTransmission(slave_address);
+  Wire.write(strSend_);
+  Wire.endTransmission();
+
+  Wire.requestFrom(slave_address,numBytesToReq,true);
+}
+
 
 void requestData(int x) {
   char slaveName = arr_slaveInfos[x].slaveName;
@@ -329,7 +405,7 @@ void requestData(int x) {
   for (int j=0;j<vialsPerSlave;j++) {
     int thisVialNum = arr_slaveInfos[x].vials[j].vialNum;
     String thisVialMode = arr_slaveInfos[x].vials[j].mode;
-
+    
     // only request info if the vialmode is set to debug
     if (thisVialMode == "debug") {
       String strSend = "V" + String(thisVialNum);
