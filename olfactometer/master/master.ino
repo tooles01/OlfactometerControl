@@ -152,7 +152,7 @@ void parseSerial(String inString) {
       int us_idx = paramToSend.indexOf('_');       paramToSend.remove(0,us_idx+1);
       int us_Lidx = paramToSend.lastIndexOf('_');  paramToSend.remove(us_Lidx);
 
-      // get list of vials to send this to
+      // get list of vials this is for
       int lastUS_idx = inString.lastIndexOf('_');
       String vialList = inString;
       vialList.remove(0,lastUS_idx+1);
@@ -419,8 +419,12 @@ void printSlaveInfo() {
   for (int i=0; i<numSlaves;i++) {
     Serial.print(arr_slaveInfos[i].slaveName);
     Serial.print("\tslaveAddress: "); Serial.print(arr_slaveInfos[i].slaveAddress);
-    //Serial.print("\tslaveActive: ");  Serial.print(arr_slaveInfos[i].slaveActive);
-    Serial.println();
+    if (arr_slaveInfos[i].slaveActive == 1) {
+      Serial.println("\t(active)");
+    }
+    if (arr_slaveInfos[i].slaveActive == 0) {
+      Serial.println("\t(inactive)");
+    }
   }
   Serial.println();
 }
