@@ -112,6 +112,7 @@ void loop() {
           arr_slaveInfos[x].prevRequestTime = currentTime;
           requestData(x);
         }
+      }
     }
   }
   
