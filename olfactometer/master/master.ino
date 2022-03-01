@@ -195,6 +195,9 @@ void parseSerial(String inString) {
           Serial.print(" ms\n");
         }
       }
+      else if (param.indexOf("mode")>=0) {
+        masterMode = value;
+      }
     }
     
     // update .. ?
