@@ -18,7 +18,7 @@ float defKd = 0.000;
 int defSp = 100;
 
 int sensPins[numVials] = {A0, A1, A2, A3, A4, A5, A6, A7};
-int ctrlPins[numVials] = {4, 5, 6, 7, 8, 9, 10, 11};
+int ctrlPins[numVials] = {2, 3, 4, 5, 6, 7, 8, 9};
 int valvPins[numVials] = {22, 23, 24, 25, 26, 27, 28, 29};
 
 typedef struct {
