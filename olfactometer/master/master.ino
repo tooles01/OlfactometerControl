@@ -217,7 +217,7 @@ void parseSerial(String inString) {
     }
     
     else {
-      Serial.println("unknown string received");
+      Log.warning("unknown string received" CR);
     }
   }
   
@@ -258,7 +258,7 @@ void parseSerial(String inString) {
         }
         
         thisSlaveVials.remove(0,s_idx+1); // start at 0, remove everything before/including this slaveName
-
+        
         Log.verbose("thisSlaveVials = %s" CR, thisSlaveVials.c_str());
         /*
         Serial.print("slave: "); Serial.print(arr_slaveInfos[s].slaveName);
@@ -279,11 +279,15 @@ void parseSerial(String inString) {
         char charArr[cArrSize];
         toSend.toCharArray(charArr,cArrSize);
         int slaveToSendTo = arr_slaveInfos[s].slaveAddress;
-        
+
+        //Log.trace("sending %c to slave at address %d" CR, charArr.c_str(), slaveToSendTo);
+        Log.trace("sending %c to slave at address %d" CR, toSend.c_str(), slaveToSendTo);
+        /*
         Serial.print("sending: ");
         Serial.print(charArr);
         Serial.print("\tto slave at address ");
         Serial.println(slaveToSendTo);
+        */
         
         Wire.beginTransmission(slaveToSendTo);
         Wire.write(charArr);
@@ -362,25 +366,10 @@ int sayHey(int addressToCheck) {
 
 void printSlaveInfo() {
   // print list of slaves n shit for funsies
-  
-  Log.info("~~~~~~~~~~~~~~~~~~" CR);
+  Log.info("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" CR);
   for (int i=0; i<numSlaves;i++) {
     if (arr_slaveInfos[i].slaveActive == 1) Log.info("Slave %c\taddress: %d\t(active)" CR, arr_slaveInfos[i].slaveName, arr_slaveInfos[i].slaveAddress);
     if (arr_slaveInfos[i].slaveActive == 0) Log.info("Slave %c\taddress: %d\t(inactive)" CR, arr_slaveInfos[i].slaveName, arr_slaveInfos[i].slaveAddress);
   }
-  
-  /*
-  Serial.println("~~~~~~~~~~~~~~~~~~");
-  for (int i=0; i<numSlaves;i++) {
-    Serial.print(arr_slaveInfos[i].slaveName);
-    Serial.print("\tslaveAddress: "); Serial.print(arr_slaveInfos[i].slaveAddress);
-    if (arr_slaveInfos[i].slaveActive == 1) {
-      Serial.println("\t(active)");
-    }
-    if (arr_slaveInfos[i].slaveActive == 0) {
-      Serial.println("\t(inactive)");
-    }
-  }
-  Serial.println();
-  */
+  Log.info("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" CR);
 }
