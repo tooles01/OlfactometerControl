@@ -24,3 +24,27 @@ const int vialsPerSlave[numSlaves] = {2,2};	// *remove
 */
 
 int timeBetweenRequests = 100;			          // can be modified from GUI
+
+
+// vialInfo
+typedef struct {
+  int vialNum;
+  String mode = "debug";
+} vialInfo;
+
+// slaveInfo
+typedef struct {
+  int slaveActive;
+  int slaveAddress;
+  char slaveName;
+  vialInfo vials[vialsPerSlave];    // set this just for creating all the structs
+  
+  String mode = "normal"; // get rid of this
+  int prevRequestTime;
+} slaveInfo;
+
+// slave address dictionary
+typedef struct {
+  char slaveName;
+  int address;
+} dictEntry;

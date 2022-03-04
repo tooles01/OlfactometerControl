@@ -14,7 +14,8 @@
 
 
 int logLevelToUse = 5;
-/*
+/* log levels:
+ *  
  * 0  SILENT
  * 1  FATAL
  * 2  ERROR
@@ -23,33 +24,9 @@ int logLevelToUse = 5;
  * 5  TRACE
  * 6  VERBOSE
  */
-
-// vialInfo
-typedef struct {
-  int vialNum;
-  String mode = "debug";
-} vialInfo;
-
-// slaveInfo
-typedef struct {
-  int slaveActive;
-  int slaveAddress;
-  char slaveName;
-  vialInfo vials[vialsPerSlave];    // set this just for creating all the structs
-  
-  String mode = "normal"; // get rid of this
-  int prevRequestTime;
-} slaveInfo;
+ 
 
 slaveInfo arr_slaveInfos[numSlaves];  // array of slaveInfo objects
-
-
-// slave address dictionary
-typedef struct {
-  char slaveName;
-  int address;
-} dictEntry;
-
 dictEntry arr_addresses[numSlaves];
 
 
