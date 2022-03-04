@@ -33,7 +33,7 @@ void setup() {
   Wire.begin(slaveAddress);
   Wire.onReceive(receiveEvent);
   Wire.onRequest(requestEvent);
-
+  
   // POPULATE VIAL ARRAY (arr_vials)
   for (int i=0; i<numVials; i++) {
     arr_vials[i].vialNum = i+1;
@@ -45,7 +45,7 @@ void setup() {
     pinMode(arr_vials[i].sensPin, INPUT);
     pinMode(arr_vials[i].ctrlPin, OUTPUT);
     pinMode(arr_vials[i].valvPin, OUTPUT);
-
+    
     
     // set prop. valve & isolation valve pins to low
     digitalWrite(arr_vials[i].ctrlPin, LOW);
@@ -61,17 +61,20 @@ void setup() {
 void loop() {
   for (int i=0; i<numVials; i++) {
     unsigned long currentTime = millis();
-    
+
+    // CHECK IF THE ISOLATION VALVE NEEDS TO BE CLOSED
     if (arr_vials[i].valveState == HIGH) {
       if (currentTime >= arr_vials[i].timeToClose) {
+        // if isolation valve needs to be closed: close isolation valve, close prop valve, turn PID off
         digitalWrite(arr_vials[i].valvPin,LOW);
-        arr_vials[i].valveState = LOW;
         digitalWrite(arr_vials[i].ctrlPin, LOW);
+        arr_vials[i].valveState = LOW;
         arr_vials[i].output = 0;
         arr_vials[i].PIDon = false;
       }
     }
-    
+
+    // CHECK IF FLOW CONTROL NEEDS TO BE DONE
     unsigned long prevTime = arr_vials[i].prevTime;
     unsigned long timeThatHasElapsed = currentTime - prevTime;
     if (timeThatHasElapsed >= timeToWait) {
@@ -84,6 +87,7 @@ void loop() {
     }
   }
 }
+
 
 void runPID(int x) {
   int setpoint = arr_vials[x].setpoint;
@@ -115,7 +119,6 @@ void runPID(int x) {
 }
 
 
-
 void receiveEvent() {
   toSendNext = "";  // later: check that each 'if' updates this, then you won't need to clear
   
@@ -141,20 +144,21 @@ void receiveEvent() {
   // parameter update
   else {
     unsigned long timeReceived = millis();
+    
+    // parse receivedStr
     String receivedParam = "";
-
-    // Parse receivedStr
     receivedParam += receivedStr[0];
     receivedParam += receivedStr[1];
     int lastUS_idx = receivedStr.lastIndexOf('_');    // find last underscore
     String valueString = receivedStr;
-    valueString.remove(lastUS_idx);   // starting at last underscore, remove everything through the end
-    valueString.remove(0,3);          // starting at index 0, remove 3 chars
+    valueString.remove(lastUS_idx);       // starting at last underscore, remove everything through the end
+    valueString.remove(0,3);              // starting at index 0, remove 3 chars
     String vialsToUpdate = receivedStr;
     vialsToUpdate.remove(0,lastUS_idx+1); // starting at index 0, remove everything before last underscore
     
     int numVialsToUpdate = vialsToUpdate.length();
-    for (int i=0; i<numVialsToUpdate;i++) {
+    for (int i=0;i<numVialsToUpdate;i++) {
+      // get index of vial
       char vialNum = vialsToUpdate[i];  // get vial number
       int vialToUpdate = vialNum-'0';   // convert from char to int
       int vialIndex = vialToUpdate-1;
@@ -202,7 +206,7 @@ void receiveEvent() {
           arr_vials[vialIndex].PIDon = true;
           arr_vials[vialIndex].prevTime = millis(); // need a time for the PID to start at
         }
-  
+        
         int lengthToOpen;
         if (valueLength > 0) {
           float lengthOpen_s = valueString.toFloat();
@@ -250,9 +254,10 @@ void receiveEvent() {
 }
 
 void requestEvent() {
-
+  
   // SEND SLAVE ADDRESS
   if (toSendNext == "address") {
+    // convert to char array and send
     char addressCArr[2];
     itoa(slaveAddress,addressCArr,10);
     Wire.write(addressCArr);    
@@ -260,6 +265,7 @@ void requestEvent() {
   
   // SEND VIAL CURRENT VALUES
   else if (toSendNext == "vial") {
+    
     // send vial number
     char vialnum[2];
     int i = vialToSendNext - 1;   // index of vial
@@ -295,7 +301,6 @@ void requestEvent() {
   }
   
 }
-
 
 
 
