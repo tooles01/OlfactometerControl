@@ -362,6 +362,14 @@ int sayHey(int addressToCheck) {
 
 void printSlaveInfo() {
   // print list of slaves n shit for funsies
+  
+  Log.info("~~~~~~~~~~~~~~~~~~" CR);
+  for (int i=0; i<numSlaves;i++) {
+    if (arr_slaveInfos[i].slaveActive == 1) Log.info("Slave %c\taddress: %d\t(active)" CR, arr_slaveInfos[i].slaveName, arr_slaveInfos[i].slaveAddress);
+    if (arr_slaveInfos[i].slaveActive == 0) Log.info("Slave %c\taddress: %d\t(inactive)" CR, arr_slaveInfos[i].slaveName, arr_slaveInfos[i].slaveAddress);
+  }
+  
+  /*
   Serial.println("~~~~~~~~~~~~~~~~~~");
   for (int i=0; i<numSlaves;i++) {
     Serial.print(arr_slaveInfos[i].slaveName);
@@ -374,4 +382,5 @@ void printSlaveInfo() {
     }
   }
   Serial.println();
+  */
 }
