@@ -10,10 +10,19 @@
 
 #include <Wire.h>
 #include "config_master.h"
+#include <ArduinoLog.h>
 
-//String masterMode = "debug";
-String masterMode = "";
 
+int logLevelToUse = 5;
+/*
+ * 0  SILENT
+ * 1  FATAL
+ * 2  ERROR
+ * 3  WARNING
+ * 4  NOTICE
+ * 5  TRACE
+ * 6  VERBOSE
+ */
 
 // vialInfo
 typedef struct {
@@ -52,7 +61,9 @@ void setup() {
   
   Wire.begin();
   Wire.setTimeout(250);  // unclear that this works
+
   
+  Log.begin(logLevelToUse, &Serial);      // set up logging
   
   // SLAVE NAME & ADDRESS DICTIONARY   --> ** move this somewhere else, config or something
   arr_addresses[0].slaveName = 'A'; arr_addresses[0].address = 3;
@@ -100,8 +111,7 @@ void loop() {
     String inString = Serial.readString();
     parseSerial(inString);
   }
-
-
+  
   
   else {
     for (int x=0;x<numSlaves;x++) {
@@ -124,8 +134,6 @@ void loop() {
             // only request info if the vialmode is set to debug
             if (thisVialMode == "debug") {
               requestVialData(slaveAddress,thisVialNum);
-              
-
 
               // don't know if this will work, but try reading it with a while loop (like slave does)
               String receivedStr = "";
@@ -133,7 +141,11 @@ void loop() {
                 char inChar = Wire.read();
                 receivedStr += inChar;
               }
-              
+
+              // print message differently when in debug mode
+              if (logLevelToUse != 6) { Log.notice("%c%s" CR, slaveName, receivedStr.c_str());}
+              else {                    Log.verbose("received from slave %c: %s" CR, slaveName, receivedStr.c_str());}
+              /*
               if (masterMode == "debug") {
                 Serial.print("received:\t");
               }
@@ -142,6 +154,7 @@ void loop() {
               }
               Serial.print(receivedStr);
               Serial.println();
+              */
             }
           }
           
@@ -149,25 +162,6 @@ void loop() {
       }
     }
   }
-  
-  // this works
-  /*
-  else {
-    for (int x=0;x<numSlaves;x++) {
-      // if slave is active
-      if (arr_slaveInfos[x].slaveActive == 1) {
-        unsigned long currentTime = millis();
-        int prevRequestTime = arr_slaveInfos[x].prevRequestTime;
-        int timeSinceLast = currentTime-prevRequestTime;
-        
-        if (timeSinceLast >= timeBetweenRequests) {
-          arr_slaveInfos[x].prevRequestTime = currentTime;
-          requestData(x);
-        }
-      }
-    }
-  }
-  */
   
 }
 
@@ -189,14 +183,14 @@ void parseSerial(String inString) {
     if (secChar == 'M') {
       if (param.indexOf("timebt")>=0) {
         timeBetweenRequests = value.toFloat();
+        Log.trace("updating time between requests to %d ms" CR, timeBetweenRequests);
+        /*
         if (masterMode == "debug") {
           Serial.print("updating time between requests to ");
           Serial.print(timeBetweenRequests);
           Serial.print(" ms\n");
         }
-      }
-      else if (param.indexOf("mode")>=0) {
-        masterMode = value;
+        */
       }
     }
     
@@ -254,6 +248,8 @@ void parseSerial(String inString) {
               // if it matches the slave vial number: update this vial's mode
               if (slave_vialNum == thisVialNum_int) {
                 arr_slaveInfos[s].vials[p].mode = paramToSend;
+                Log.trace("\tupdating arr_slaveInfos[%d].vials[%d].mode to %s" CR, s, p, paramToSend.c_str());
+                /*
                 if (masterMode == "debug") {
                   Serial.print("\tupdating arr_slaveInfos[");
                   Serial.print(s);
@@ -262,6 +258,7 @@ void parseSerial(String inString) {
                   Serial.print("].mode to ");
                   Serial.println(paramToSend);
                 }
+                */
               }
             }
           }
@@ -304,6 +301,7 @@ void parseSerial(String inString) {
             ns_idx = thisSlaveVials.indexOf(ns_name);
             if (ns_idx!=-1) {
               thisSlaveVials.remove(ns_idx);  // if another slave is present after this one
+              Log.verbose("thisSlaveVials = %s" CR, thisSlaveVials.c_str());
               /*
               if (masterMode == "debug") {
                 Serial.print("thisSlaveVials = ");
@@ -317,6 +315,8 @@ void parseSerial(String inString) {
         }
         
         thisSlaveVials.remove(0,s_idx+1); // start at 0, remove everything before/including this slaveName
+
+        Log.verbose("thisSlaveVials = %s" CR, thisSlaveVials.c_str());
         /*
         if (masterMode == "debug") {
           Serial.print("thisSlaveVials = ");
@@ -383,7 +383,9 @@ void requestVialData(int slave_address, int vial_number) {
   int numChars = strSend.length() + 1;
   char strSend_[numChars];
   strSend.toCharArray(strSend_,numChars);
-  
+
+  Log.trace("\nsent:\t\t%s\t\tto address %d" CR, strSend.c_str(), slave_address);
+  /*
   if (masterMode == "debug") {
     Serial.print("\nsent:\t\t");
     Serial.print(strSend);
@@ -391,6 +393,7 @@ void requestVialData(int slave_address, int vial_number) {
     Serial.print(slave_address);
     Serial.println();
   }
+  */
 
   Wire.beginTransmission(slave_address);
   Wire.write(strSend_);
@@ -399,68 +402,6 @@ void requestVialData(int slave_address, int vial_number) {
   Wire.requestFrom(slave_address,numBytesToReq,true);
 }
 
-
-void requestData(int x) {
-  char slaveName = arr_slaveInfos[x].slaveName;
-  int slaveAddress = arr_slaveInfos[x].slaveAddress;
-  int numBytesToReq = 13;
-  
-  for (int j=0;j<vialsPerSlave;j++) {
-    int thisVialNum = arr_slaveInfos[x].vials[j].vialNum;
-    String thisVialMode = arr_slaveInfos[x].vials[j].mode;
-    
-    // only request info if the vialmode is set to debug
-    if (thisVialMode == "debug") {
-      String strSend = "V" + String(thisVialNum);
-      int numChars = strSend.length() + 1;
-      char strSend_[numChars];
-      strSend.toCharArray(strSend_,numChars);
-      if (masterMode == "debug") {
-        Serial.print("\nsent:\t\t");
-        Serial.print(strSend);
-        Serial.print("\t\tto address ");
-        Serial.print(slaveAddress);
-        Serial.print(" (slave ");
-        Serial.print(arr_slaveInfos[x].slaveName);
-        Serial.print(")");
-        Serial.println();
-      }
-      
-      Wire.beginTransmission(slaveAddress);
-      Wire.write(strSend_);
-      Wire.endTransmission();
-      
-      Wire.requestFrom(slaveAddress,numBytesToReq,true);
-      
-      if (masterMode == "debug") {
-        Serial.print("received:\t");
-      }
-      else {
-        Serial.print(slaveName);
-      }
-            
-      for (int a=0;a<numBytesToReq;a++) {
-        char fromSlave = Wire.read();
-        Serial.print(fromSlave);
-      }
-      Serial.println();
-      
-      /*
-      if (masterMode == "debug") {
-        Serial.print("string '");
-        Serial.print(whatDoWeGet);
-        Serial.print("' (length: ");
-        Serial.print(whatDoWeGet.length());
-        Serial.print(" chars, size: ");
-        Serial.print(sizeof(whatDoWeGet));
-        Serial.print(" bytes)");
-        Serial.println();
-        Serial.println("end of transmission from slave");
-      }
-      */
-    }
-  }
-}
 
 
 
