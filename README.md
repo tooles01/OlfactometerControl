@@ -1,3 +1,6 @@
+*** this is outdated  - updated repository at OlfaControl_Arduino
+
+
 - make environment in this folder (C:\Users\SB13FLLT004\Dropbox (NYU Langone Health)\OlfactometerEngineeringGroup (2)\Control\a_software\OlfactometerControl)
 - activate environment
 - run "pip install -r requirements.txt"
