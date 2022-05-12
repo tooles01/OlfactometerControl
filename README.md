@@ -1,9 +1,4 @@
 # *** this is outdated  - updated repository at OlfaControl_Arduino
-
-
-
-#
-#
 #
 
 
